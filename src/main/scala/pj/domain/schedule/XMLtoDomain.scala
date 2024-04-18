@@ -4,7 +4,7 @@ import pj.domain.{DomainError, Result}
 import pj.domain.schedule.Domain.*
 import pj.domain.schedule.SimpleTypes.{Role, agendaDuration, availabilityEnd, availabilityStart, externalId, externalName, resourceId, resourceName, teacherId, teacherName, vivaId, vivaStudent, vivaTitle}
 import pj.io.FileIO
-import pj.xml.XML.{fromAttribute, traverse}
+import pj.xml.XML.{fromAttribute, sequence, traverse}
 
 import java.io.PrintWriter
 import java.time.format.DateTimeFormatter
@@ -16,7 +16,7 @@ import scala.xml.{Elem, Node, PrettyPrinter}
 
 object XMLtoDomain:
   val xmlTelo = FileIO.load("/home/telogaspar/Documents/Mestrado/TAP/1230196_1231304_ncf/files/test/ms01/simple01.xml")
-
+  val xmlLuis = FileIO.load("C:\\Users\\Luis Serapicos\\Desktop\\1230196_1231304_ncf\\files\\test\\ms01\\simple01.xml")
 
   def getPreference(xml: Node): Result[Preference] =
     for
@@ -27,7 +27,7 @@ object XMLtoDomain:
       preference <- Preference.from(prefInt.toString)
     yield preference
 
-  val listPref = xmlTelo.flatMap(getPreference)
+  val listPref = xmlLuis.flatMap(getPreference)
 
   def getAvailabilities(node: Node): Result[List[Availability]] =
     traverse(node \ "availability", availability => {
@@ -81,3 +81,39 @@ object XMLtoDomain:
       availabilities <- getAvailabilities(node)
       roles <- getRoles(node)
     yield Resource(rid, rnameF, availabilities, roles)
+
+  
+  def getTeachers(xml: Node): Result[List[Resource]] =
+    traverse(xml \ "resources" \ "teachers" \ "teacher", getResource)
+  
+  def getExternals(xml: Node): Result[List[Resource]] =
+    traverse(xml \ "resources" \ "externals" \ "external", getResource)
+  
+  def getAgendaDuration(xml: Node): Result[agendaDuration] =
+    fromAttribute(xml, "duration").flatMap(agendaDuration.from)
+  
+  def getViva(xml: Node): Result[Viva] =
+    for
+      student <- fromAttribute(xml, "student")
+      studentId <- vivaStudent.from(student)
+      title <- fromAttribute(xml, "title")
+      titleF <- vivaTitle.from(title)
+      roles <- sequence((xml \ "_").map { roleNode =>
+        val id = fromAttribute(roleNode, "id").flatMap(resourceId.from)
+        val role = roleNode.label match {
+          case "president" => Right(Role.President)
+          case "advisor" => Right(Role.Advisor)
+          case "coadvisor" => Right(Role.Coadvisor)
+          case "supervisor" => Right(Role.Supervisor)
+          case _ => Left(DomainError.XMLError(s"Invalid role type: ${roleNode.label}"))
+        }
+        for
+          rid <- id
+          r <- role
+        yield (rid, r)
+      }.toList).map(_.toMap)
+    yield Viva(studentId, titleF, roles)
+  
+  def getVivas(xml: Node): Result[List[Viva]] =
+    traverse(xml \ "vivas" \ "viva", getViva)
+    

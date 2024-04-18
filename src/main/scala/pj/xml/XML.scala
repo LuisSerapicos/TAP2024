@@ -34,3 +34,12 @@ object XML:
         b <- f(a)
       yield lb :+ b
     }.map(_.toList)
+
+  /**
+   * Traverse a list of results, folding them into a single result
+   */
+  def sequence[A](list: List[Result[A]]): Result[List[A]] =
+    list.foldRight[Result[List[A]]](Right(Nil))((e, acc) => for {
+      xs <- acc
+      x <- e
+    } yield x :: xs)
