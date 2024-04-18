@@ -1284,7 +1284,7 @@ xsi:noNamespaceSchemaLocation="../../agenda.xsd" duration="01:00:00" xmlns:xsi="
                 <availability start="2024-06-27T13:15:00" end="2024-06-27T15:48:00" preference="5"/>
             </external>
             <external id="E106" name="E106">
-                <availability start="2024-06-04T08:23:00" end="2024-06-04T10:23:00" preference="1"/>
+                <availability start="2024-06-04T08:23:00" end="2024-06-04T09:30:00" preference="1"/>
                 <availability start="2024-06-25T18:29:00" end="2024-06-25T20:04:00" preference="2"/>
                 <availability start="2024-06-10T10:19:00" end="2024-06-10T11:23:00" preference="4"/>
                 <availability start="2024-06-14T17:37:00" end="2024-06-14T19:26:00" preference="3"/>
@@ -1308,7 +1308,7 @@ xsi:noNamespaceSchemaLocation="../../agenda.xsd" duration="01:00:00" xmlns:xsi="
                 <availability start="2024-06-20T08:25:00" end="2024-06-20T10:46:00" preference="1"/>
                 <availability start="2024-06-08T15:51:00" end="2024-06-08T17:00:00" preference="1"/>
                 <availability start="2024-06-03T13:28:00" end="2024-06-03T14:28:00" preference="3"/>
-                <availability start="2024-06-04T09:00:00" end="2024-06-04T11:07:00" preference="2"/>
+                <availability start="2024-06-04T09:30:00" end="2024-06-04T11:07:00" preference="2"/>
                 <availability start="2024-06-05T15:02:00" end="2024-06-05T17:02:00" preference="3"/>
                 <availability start="2024-06-23T12:00:00" end="2024-06-23T14:00:00" preference="1"/>
             </external>
