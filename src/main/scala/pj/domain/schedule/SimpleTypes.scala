@@ -110,7 +110,7 @@ object SimpleTypes:
 
   object vivaId:
     def from(id: String): Result[vivaId] =
-      if (id.nonEmpty) Right(id)
+      if (id.matches("^T\\d{3}$") || id.matches("^E\\d{3}$")) Right(id)
       else Left(DomainError.InvalidVivaId(id))
 
     extension (id: vivaId)
@@ -142,14 +142,13 @@ object SimpleTypes:
   implicit val roleOrdering: Ordering[Role] = Ordering.by:
     case Role.President => 1
     case Role.Advisor => 2
-    case Role.Supervisor => 3
-    case Role.Coadvisor => 4
+    case Role.Coadvisor => 3
+    case Role.Supervisor => 4
 
 
 final case class Preference private(d: Int)
 
 object Preference:
-
   private def unsafePreference(p: Int): Preference = Preference(p)
 
   private val isValid: Int => Boolean = { i => i >= 1 && i <= 5 }
@@ -158,9 +157,10 @@ object Preference:
     try
       val prefInt = preference.toInt
       if (isValid(prefInt)) Right(unsafePreference(prefInt))
-      else Left(DomainError.InvalidPreference(s"Invalid preference: $preference"))
+      else Left(DomainError.InvalidPreference(s"$preference"))
     catch
-      case _: NumberFormatException => Left(DomainError.InvalidPreference(s"Invalid preference: $preference"))
+      case _: NumberFormatException => Left(DomainError.InvalidPreference(s"$preference"))
 
   extension (pref: Preference)
     def to: Int = pref.d
+    def +(other: Preference): Preference = unsafePreference(pref.d + other.d)

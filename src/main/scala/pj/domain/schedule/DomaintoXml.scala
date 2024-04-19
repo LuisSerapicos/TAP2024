@@ -1,32 +1,28 @@
 package pj.domain.schedule
 
 import pj.domain.schedule.Domain.{Availability, Resource, Viva}
-import pj.domain.schedule.SimpleTypes.Role
+import pj.domain.schedule.SimpleTypes.{Role, agendaDuration}
+import pj.domain.schedule.Utils.stringToDuration
 
+import java.time.Duration
 import java.time.format.DateTimeFormatter
 import scala.xml.Elem
 
 object DomaintoXml:
-  def teacherToXml(teacher: Resource): Elem =
+  def teacherToXml(teacher: Resource, agendaDuration: agendaDuration): Elem =
     <teacher id={teacher.id.to} name={teacher.name.to}>
-      {teacher.availabilities.map(availabilityToXml)}
+      {teacher.availabilities.flatMap(availability => availabilityToXml(availability, agendaDuration))}
     </teacher>
 
-  def externalToXml(external: Resource): Elem =
+  def externalToXml(external: Resource, agendaDuration: agendaDuration): Elem =
     <external id={external.id.to} name={external.name.to}>
-      {external.availabilities.map(availabilityToXml)}
+      {external.availabilities.flatMap(availability => availabilityToXml(availability, agendaDuration))}
     </external>
 
-  def availabilityToXml(availability: Availability): Elem =
-      <availability start={availability.start.to.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)} end={availability.end.to.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)} preference={availability.preference.d.toString}/>
-
-  def vivaToXml(viva: Viva): Elem =
-    <viva student={viva.student.to} title={viva.title.to}>
-      {viva.roles.map { case (id, role) =>
-      role match
-        case Role.President => <president id={id.to}/>
-        case Role.Advisor => <advisor id={id.to}/>
-        case Role.Supervisor => <supervisor id={id.to}/>
-        case Role.Coadvisor => <coadvisor id={id.to}/>
-    }}
-    </viva>
+  def availabilityToXml(availability: Availability, agendaDuration: agendaDuration): Option[Elem] =
+    val duration = stringToDuration(agendaDuration.to).getOrElse(Duration.ZERO)
+    val availabilityDuration = Duration.between(availability.start.to, availability.end.to)
+    if (availabilityDuration.compareTo(duration) >= 0)
+      Some(<availability start={availability.start.to.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)} end={availability.end.to.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)} preference={availability.preference.d.toString}/>)
+    else
+      None

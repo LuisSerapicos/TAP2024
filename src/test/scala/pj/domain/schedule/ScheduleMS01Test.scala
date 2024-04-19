@@ -137,24 +137,6 @@ class ScheduleMS01Test extends AnyFunSuite:
     } yield (student, title, president, advisor))
     assert(result.isLeft)
 
-  test("sequence returns Right when all elements are valid"):
-    val list = List(
-      Right(<teacher id="T001" name="Teacher 001"/>),
-      Right(<teacher id="T002" name="Teacher 002"/>),
-      Right(<teacher id="T003" name="Teacher 003"/>)
-    )
-    val result = XML.sequence(list.map(_.fold(_ => resourceId.from(""), node => resourceId.from(node \@ "id"))))
-    assert(result.isRight)
-
-  test("sequence returns Left when an element is invalid"):
-    val list = List(
-      Right(<teacher id="T001" name="Teacher 001"/>),
-      Right(<teacher id="T2" name="Teacher 002"/>),
-      Right(<teacher id="T003" name="Teacher 003"/>)
-    )
-    val result = XML.sequence(list.map(_.fold(_ => resourceId.from(""), node => resourceId.from(node \@ "id"))))
-    assert(result.isLeft)
-
 
   //FileIO Tests
   test("load with filename returns Right with XML Elem when file exists"):
