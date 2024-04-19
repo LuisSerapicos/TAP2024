@@ -56,7 +56,7 @@ object Algorithm:
 
     // If there is no common availability slot, return an error
     if (overlappingAvailabilities.isEmpty)
-      Left(DomainError.XMLError("No common availability slot found"))
+      Left(DomainError.ImpossibleSchedule)
     else
       Right(overlappingAvailabilities)
 

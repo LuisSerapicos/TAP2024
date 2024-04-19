@@ -65,3 +65,13 @@ The updateAgenda function saves the updated agenda to an XML file. It pretty muc
 
 ## Tests
 Several unit tests for different components of the scheduling system were written to cover domain errors, XML processing, file I/O operations, simple types validation, and XML to domain conversion. For domain errors, each error type is tested to ensure it returns the correct string. XML processing tests check the correct extraction of nodes and attributes from XML, and the traversal of XML elements. File I/O tests verify the loading of XML files and error messages from files. Simple types tests validate the conversion from strings to domain-specific types like agendaDuration, vivaStudent, vivaTitle, etc. XML to domain tests ensure the correct conversion of XML data to domain objects like Viva, Teacher, and External. The tests are designed to ensure that each component of the system works as expected and handles errors correctly.
+
+The functional tests provided assess various functionalities of the scheduling algorithm implemented. These tests cover scenarios such as identifying overlapping availabilities, finding suitable time slots for vivas, scheduling vivas with teachers and externals, and updating the agenda with new availabilities.
+
+To test the intersectAvailabilities algorithm it was evaluated how to correctly identify overlapping availabilities and return a new availability. This test ensures that the algorithm can handle different availability scenarios and produce the expected results.
+
+The subsequent test, about the findEarliestTimeSlot function, its verified the algorithm's capability to find the earliest available time slot that fits the agenda duration, ensuring that it can efficiently schedule vivas without conflicts.
+
+The scheduleViva and scheduleAllVivas tests validate the scheduling process by checking if its possible to successfully assign vivas to available time slots while considering roles. These tests ensure that vivas are scheduled optimally and with the appropriate resources.
+
+Lastly, the tests scheduleVivas and updateAgenda evaluate the algorithm's ability to process XML data and update the agenda accordingly.
