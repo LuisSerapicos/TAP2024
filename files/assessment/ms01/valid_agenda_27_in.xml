@@ -705,7 +705,7 @@ xsi:noNamespaceSchemaLocation="../../agenda.xsd" duration="01:00:00" xmlns:xsi="
                 <availability start="2024-06-18T14:13:00" end="2024-06-18T16:10:00" preference="2"/>
                 <availability start="2024-06-08T09:00:00" end="2024-06-08T10:01:00" preference="5"/>
                 <availability start="2024-06-11T18:06:00" end="2024-06-11T19:50:00" preference="3"/>
-                <availability start="2024-06-16T14:19:00" end="2024-06-16T17:12:00" preference="1"/>
+                <availability start="2024-06-16T14:29:00" end="2024-06-16T17:12:00" preference="1"/>
                 <availability start="2024-06-25T17:03:00" end="2024-06-25T18:56:00" preference="1"/>
                 <availability start="2024-06-09T13:19:00" end="2024-06-09T15:42:00" preference="5"/>
                 <availability start="2024-06-10T08:35:00" end="2024-06-10T10:00:00" preference="5"/>
@@ -873,7 +873,7 @@ xsi:noNamespaceSchemaLocation="../../agenda.xsd" duration="01:00:00" xmlns:xsi="
                 <availability start="2024-06-11T10:09:00" end="2024-06-11T12:14:00" preference="3"/>
                 <availability start="2024-06-06T11:59:00" end="2024-06-06T12:59:00" preference="3"/>
                 <availability start="2024-06-28T17:01:00" end="2024-06-28T19:00:00" preference="5"/>
-                <availability start="2024-06-03T12:29:00" end="2024-06-03T15:26:00" preference="3"/>
+                <availability start="2024-06-03T12:29:00" end="2024-06-03T15:03:00" preference="3"/>
                 <availability start="2024-06-13T13:20:00" end="2024-06-13T15:00:00" preference="1"/>
             </teacher>
             <teacher id="T088" name="T088">
@@ -908,7 +908,7 @@ xsi:noNamespaceSchemaLocation="../../agenda.xsd" duration="01:00:00" xmlns:xsi="
             <teacher id="T086" name="T086">
                 <availability start="2024-06-08T11:17:00" end="2024-06-08T13:12:00" preference="3"/>
                 <availability start="2024-06-23T11:22:00" end="2024-06-23T13:00:00" preference="1"/>
-                <availability start="2024-06-23T12:50:00" end="2024-06-23T14:36:00" preference="5"/>
+                <availability start="2024-06-23T13:00:00" end="2024-06-23T14:36:00" preference="5"/>
             </teacher>
             <teacher id="T012" name="T012">
                 <availability start="2024-06-28T09:40:00" end="2024-06-28T11:00:00" preference="2"/>
@@ -980,7 +980,7 @@ xsi:noNamespaceSchemaLocation="../../agenda.xsd" duration="01:00:00" xmlns:xsi="
             <teacher id="T134" name="T134">
                 <availability start="2024-06-14T17:30:00" end="2024-06-14T19:01:00" preference="3"/>
                 <availability start="2024-06-16T15:27:00" end="2024-06-16T16:59:00" preference="5"/>
-                <availability start="2024-06-14T15:59:00" end="2024-06-14T17:48:00" preference="3"/>
+                <availability start="2024-06-14T15:59:00" end="2024-06-14T17:30:00" preference="3"/>
                 <availability start="2024-06-13T08:33:00" end="2024-06-13T09:53:00" preference="2"/>
                 <availability start="2024-06-03T11:00:00" end="2024-06-03T12:01:00" preference="1"/>
                 <availability start="2024-06-13T13:52:00" end="2024-06-13T15:46:00" preference="1"/>
@@ -1298,7 +1298,7 @@ xsi:noNamespaceSchemaLocation="../../agenda.xsd" duration="01:00:00" xmlns:xsi="
                 <availability start="2024-06-14T09:00:00" end="2024-06-14T10:59:00" preference="5"/>
                 <availability start="2024-06-19T09:13:00" end="2024-06-19T11:12:00" preference="5"/>
                 <availability start="2024-06-29T17:56:00" end="2024-06-29T20:42:00" preference="3"/>
-                <availability start="2024-06-10T09:00:00" end="2024-06-10T10:56:00" preference="1"/>
+                <availability start="2024-06-10T09:00:00" end="2024-06-10T10:10:00" preference="1"/>
                 <availability start="2024-06-14T15:59:00" end="2024-06-14T17:00:00" preference="3"/>
                 <availability start="2024-06-07T10:42:00" end="2024-06-07T12:01:00" preference="5"/>
                 <availability start="2024-06-29T15:52:00" end="2024-06-29T16:53:00" preference="2"/>

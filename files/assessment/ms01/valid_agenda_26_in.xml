@@ -549,10 +549,10 @@ xsi:noNamespaceSchemaLocation="../../agenda.xsd" duration="01:00:00" xmlns:xsi="
                 <availability start="2024-06-01T11:24:00" end="2024-06-01T12:29:00" preference="3"/>
                 <availability start="2024-06-23T16:28:00" end="2024-06-23T18:18:00" preference="5"/>
                 <availability start="2024-06-11T12:35:00" end="2024-06-11T14:21:00" preference="2"/>
-                <availability start="2024-06-18T15:59:00" end="2024-06-18T17:59:00" preference="1"/>
+                <availability start="2024-06-18T15:59:00" end="2024-06-18T17:30:00" preference="1"/>
                 <availability start="2024-06-11T10:27:00" end="2024-06-11T12:01:00" preference="1"/>
                 <availability start="2024-06-21T11:11:00" end="2024-06-21T13:02:00" preference="5"/>
-                <availability start="2024-06-18T17:20:00" end="2024-06-18T19:09:00" preference="1"/>
+                <availability start="2024-06-18T17:40:00" end="2024-06-18T19:09:00" preference="1"/>
             </teacher>
             <teacher id="T058" name="T058">
                 <availability start="2024-06-30T13:22:00" end="2024-06-30T14:45:00" preference="1"/>
