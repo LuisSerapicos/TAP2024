@@ -98,7 +98,6 @@ object Algorithm:
    * @param externals List of externals.
    * @return Result containing the scheduled viva and updated lists of teachers and externals.
    */
-  //Include duration and save to the read xml
   def scheduleViva(viva: Viva, teachers: List[Resource], externals: List[Resource], agendaDuration: agendaDuration): Result[(Viva, Availability, List[Resource], List[Resource], Int)] =
     findEarliestTimeSlot(viva, teachers, externals, agendaDuration).flatMap:
       case Some(timeSlot) =>

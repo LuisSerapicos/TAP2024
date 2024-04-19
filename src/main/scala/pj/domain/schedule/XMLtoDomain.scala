@@ -18,6 +18,14 @@ object XMLtoDomain:
   val xml2 = FileIO.load("files/test/ms01/simple01.xml")
 
 
+  /**
+   * Converts a string representation of a duration to a Duration object.
+   *
+   * The string should be in the format "HH:MM:SS", where HH represents hours, MM represents minutes, and SS represents seconds.
+   *
+   * @param durationString The string representation of the duration.
+   * @return An Option[Duration] which is a Some[Duration] if the conversion is successful, or a None if an error occurs during the conversion.
+   */
   def getPreference(xml: Node): Result[Preference] =
     for
       pref <- traverse((xml \ "resources" \ "teachers" \ "teacher" \ "availability") ++ (xml \ "resources" \ "externals" \ "external" \ "availability"), viva => fromAttribute(viva, "preference"))
@@ -29,6 +37,12 @@ object XMLtoDomain:
 
   val listPref = xml2.flatMap(getPreference)
 
+  /**
+   * Extracts the availabilities from the XML node.
+   *
+   * @param node The XML node.
+   * @return A Result[List[Availability]] which is a Right[List[Availability]] if the operation is successful, or a Left[DomainError] if an error occurs.
+   */
   def getAvailabilities(node: Node): Result[List[Availability]] =
     val availabilities = traverse(node \ "availability", availability => {
       val start = fromAttribute(availability, "start").map(LocalDateTime.parse)
@@ -52,6 +66,12 @@ object XMLtoDomain:
       case list if list.isEmpty => Left(DomainError.XMLError("No availability nodes found"))
       case list => Right(list)
 
+  /**
+   * Extracts the roles from the XML node.
+   *
+   * @param node The XML node.
+   * @return A Result[Map[resourceId, Role]] which is a Right[Map[resourceId, Role]] if the operation is successful, or a Left[DomainError] if an error occurs.
+   */
   def getRoles(node: Node): Result[Map[resourceId, Role]] =
     val roles = (node \ "_").flatMap { roleNode =>
       val idResult = fromAttribute(roleNode, "id").flatMap(resourceId.from)
@@ -69,8 +89,13 @@ object XMLtoDomain:
     roles.sizeIs match
       case s if s < 2 => Left(DomainError.InvalidNumberOfRoles("Required number of roles is minimum of 2"))
       case _ => Right(roles)
-
-
+  
+  /**
+   * Extracts the resource from the XML node.
+   *
+   * @param node The XML node.
+   * @return A Result[Resource] which is a Right[Resource] if the operation is successful, or a Left[DomainError] if an error occurs.
+   */
   def getResource(node: Node): Result[Resource] =
     for
       id <- fromAttribute(node, "id")
@@ -84,19 +109,43 @@ object XMLtoDomain:
       availabilities <- getAvailabilities(node)
     yield Resource(rid, rnameF, availabilities)
 
+  /**
+   * Extracts the teachers from the XML node.
+   *
+   * @param xml The XML node.
+   * @return A Result[List[Resource]] which is a Right[List[Resource]] if the operation is successful, or a Left[DomainError] if an error occurs.
+   */
   def getTeachers(xml: Node): Result[List[Resource]] =
     xml \ "resources" \ "teachers" \ "teacher" match
       case nodes if nodes.isEmpty => Left(DomainError.XMLError("No teacher nodes found"))
       case nodes => traverse(nodes, getResource)
 
+  /**
+   * Extracts the externals from the XML node.
+   *
+   * @param xml The XML node.
+   * @return A Result[List[Resource]] which is a Right[List[Resource]] if the operation is successful, or a Left[DomainError] if an error occurs.
+   */
   def getExternals(xml: Node): Result[List[Resource]] =
     xml \ "resources" \ "externals" \ "external" match
       case nodes if nodes.isEmpty => Left(DomainError.XMLError("No external nodes found"))
       case nodes => traverse(nodes, getResource)
 
+  /**
+   * Extracts the agenda duration from the XML node.
+   *
+   * @param xml The XML node.
+   * @return A Result[agendaDuration] which is a Right[agendaDuration] if the operation is successful, or a Left[DomainError] if an error occurs.
+   */
   def getAgendaDuration(xml: Node): Result[agendaDuration] =
     fromAttribute(xml, "duration").flatMap(agendaDuration.from)
 
+  /**
+   * Extracts the viva from the XML node.
+   *
+   * @param xml The XML node.
+   * @return A Result[Viva] which is a Right[Viva] if the operation is successful, or a Left[DomainError] if an error occurs.
+   */
   def getViva(xml: Node): Result[Viva] =
     for
       student <- fromAttribute(xml, "student")
@@ -106,6 +155,13 @@ object XMLtoDomain:
       roles <- getRoles(xml)
     yield Viva(studentId, titleF, roles)
 
+
+  /**
+   * Extracts the vivas from the XML node.
+   *
+   * @param xml The XML node.
+   * @return A Result[List[Viva]] which is a Right[List[Viva]] if the operation is successful, or a Left[DomainError] if an error occurs.
+   */
   def getVivas(xml: Node): Result[List[Viva]] =
     xml \ "vivas" \ "viva" match
       case nodes if nodes.isEmpty => Left(DomainError.XMLError("No viva nodes found"))
