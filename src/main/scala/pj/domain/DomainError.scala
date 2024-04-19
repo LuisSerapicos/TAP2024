@@ -5,6 +5,7 @@ type Result[A] = Either[DomainError,A]
 enum DomainError:
   case IOFileProblem(error: String)
   case XMLError(error: String)
+  
   case InvalidAgendaDuration(duration: String)
   case InvalidVivaStudent(studentId: String)
   case InvalidVivaTitle(title: String)
@@ -21,3 +22,5 @@ enum DomainError:
   case InvalidVivaId(vivaId: String)
   case InvalidResourceId(resourceId: String)
   case InvalidResourceName(resourceName: String)
+  case InvalidNumberOfRoles(roles: String)
+  case ImpossibleSchedule

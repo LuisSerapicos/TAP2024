@@ -15,8 +15,7 @@ import scala.xml.{Elem, Node, PrettyPrinter}
 
 
 object XMLtoDomain:
-  val xmlTelo = FileIO.load("/home/telogaspar/Documents/Mestrado/TAP/1230196_1231304_ncf/files/test/ms01/simple01.xml")
-  val xmlLuis = FileIO.load("C:\\Users\\Luis Serapicos\\Desktop\\1230196_1231304_ncf\\files\\test\\ms01\\simple01.xml")
+  val xml = FileIO.load("files/test/ms01/simple01.xml")
 
   def getPreference(xml: Node): Result[Preference] =
     for
@@ -27,7 +26,7 @@ object XMLtoDomain:
       preference <- Preference.from(prefInt.toString)
     yield preference
 
-  val listPref = xmlLuis.flatMap(getPreference)
+  val listPref = xml.flatMap(getPreference)
 
   def getAvailabilities(node: Node): Result[List[Availability]] =
     traverse(node \ "availability", availability => {
