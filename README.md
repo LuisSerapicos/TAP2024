@@ -9,6 +9,83 @@
 
 This project revolves around the scheduling process involves multiple entities and must adhere to various constraints to ensure optimal timing for each viva. At its essence, the project entails developing two algorithms, using functional programming, that iteratively enhance the scheduling process, aiming to achieve an optimal solution.
 
+
+## MS02
+
+### Objective
+
+The primary objective of Milestone 2 is to create property-based tests for the viva scheduling problem domain. Property-based testing is a powerful testing methodology that allows us to specify the logical properties our program should always satisfy and then uses these properties to generate test cases. This approach helps us to uncover edge cases that we might not have thought of during manual test case creation.
+
+### Generators
+
+Generators are used to create random data for property-based tests. We have defined generators for the domain classes Viva, Availability, and Resource, as well as for the opaque types used in the domain model. These generators are designed to produce valid instances of the domain classes, ensuring that the generated data adheres to the constraints and patterns defined in the domain model.
+
+
+#### Generate Three Digit Number
+    
+The threeDigitNumber generator is used to generate random three-digit numbers, which are commonly used as identifiers for resources and other entities in the domain model. The generator ensures that the generated numbers are within the valid range of 001 to 999, providing a diverse set of identifiers for testing purposes.
+
+#### Generate Resource Id
+
+The resourceId generator is used to create random resource identifiers, which consist of a prefix ('T' for teachers and 'E' for external persons) followed by a three-digit number. The generator ensures that the generated identifiers adhere to the specified pattern, allowing for the creation of valid resource instances for testing.
+
+#### Generate Roles (President, Advisor, Coadvisor, Supervisor)
+
+The role generator is used to create random roles for resources involved in vivas. The generator selects a random role from the predefined set of roles (President, Advisor, Coadvisor, Supervisor), ensuring that the generated roles are valid and representative of the roles assigned to resources in vivas.
+
+#### Generate Unique Resource 
+
+The uniqueResource generator is used to create unique resource instances for testing purposes. The generator combines the resourceId and resourceName generators to create resource instances with unique identifiers and names, ensuring that the generated resources are distinct and representative of real-world data.
+
+### Generate Agenda Duration
+
+The agendaDuration generator is used to create random agenda durations, which represent the time allocated for each viva. The generator generates random durations within the valid range of 1, 1:30 and 2 hours, ensuring that the generated durations are diverse and representative of real-world scenarios.
+
+### Generate Availability Start
+
+The availabilityStart generator is used to create random availability start times for resources. The generator generates random start times within the valid range of 8:00 to 18:00, ensuring that the generated start times are representative of the availability periods of resources.
+
+### Generate Availability End
+
+The availabilityEnd generator is used to create random availability end times for resources. The generator generates random end times within the valid range of 9:00 to 20:00, ensuring that the generated end times are representative of the availability periods of resources.
+
+### Generate Viva Roles
+
+The vivaRoles generator is used to create random role assignments for resources involved in vivas. The generator combines the resourceId and role generators to create role assignments with random resource identifiers and roles.
+
+### Generate Viva
+
+The viva generator is used to create random viva instances for testing purposes. The generator combines the vivaStudent, vivaTitle, and vivaRoles generators to create viva instances with random student names, dissertation titles, and role assignments.
+
+### Generate Intersected Availabilities and Scheduled Viva
+
+The intersectedAvailabilities generator is used to create random intersected availabilities for resources involved in vivas in an early phase of the algorithm so we can check for overlaps between availabilities. 
+The scheduledViva generator is used to create random scheduled vivas. Similar to the intersectedAvailabilities generator, it generates a duration, unique resources (teachers and externals), combines all resources, and picks a subset of them. It then generates a list of vivas using these resources and uses the algorithm method to schedule all the vivas, resulting in a list of scheduled vivas, the teachers, the externals, and the duration.
+
+
+### Properties
+
+The properties we have considered relevant for our domain are:
+
+1. All vivas must be scheduled in the intervals in which its resources are available: This property ensures that a viva is only scheduled when all its required resources are available. It helps to maintain the integrity of the scheduling process by ensuring that no viva is scheduled at a time when any of its required resources is unavailable.
+2. One resource cannot be overlapped in two scheduled vivas: This property ensures that a resource is not double-booked. It helps to prevent scheduling conflicts by ensuring that a resource is not assigned to more than one viva at the same time.
+3. The generated availability intervals must contain at least one interval equal to or greater than the viva duration: This property ensures that the availability intervals generated for resources contain at least one interval that is equal to or greater than the duration of the viva. It helps to ensure that the scheduling algorithm can find a suitable time slot for the viva within the availability intervals of the resources.
+4. The generated resources must have unique identifiers: It helps to prevent conflicts and inconsistencies in the scheduling process by ensuring that each resource is uniquely identified and do not appear more than once in the same viva.
+5. The size of the juries of the scheduled viva must be the same as the original viva: This property ensures that the size of the juries of the scheduled viva is the same as the original viva. It helps to maintain the consistency of the scheduling process by ensuring that the correct number of resources is assigned to each viva.
+6. The total preference of all scheduled vivas must match the total preference of the agenda: This property ensures that the total preference of all scheduled vivas matches the total preference of the agenda.
+7. The generated availability intervals must not overlap each other: This property ensures that the generated availability intervals for resources do not overlap with each other. It helps to prevent scheduling conflicts by ensuring that each resource is available at distinct time intervals.
+
+
+
+We consider these properties relevant to our domain as they help to check the scheduling of vivas. They were implemented to catch potential scheduling conflicts and inconsistencies, improving the reliability of the scheduling algorithm.
+
+
+
+---
+
+
+## MS01
+
 ## Domain
 
 The domain has three key classes: Viva, Availability, and Resource.

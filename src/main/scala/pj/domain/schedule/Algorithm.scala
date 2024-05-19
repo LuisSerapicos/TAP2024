@@ -26,38 +26,40 @@ object Algorithm:
   def intersectAvailabilities(viva: Viva, teachers: List[Resource], externals: List[Resource], agendaDuration: agendaDuration): Result[List[Availability]] =
     // Get the ids of the resources required for the viva
     val requiredResourceIds = viva.roles.keys.toList
-    println(s"Required resource ids for viva ${viva.student}: $requiredResourceIds")
 
-    // Get the availabilities of the required resources
-    val requiredAvailabilities = teachers.filter(t => requiredResourceIds.contains(t.id)).flatMap(_.availabilities) ++
-      externals.filter(e => requiredResourceIds.contains(e.id)).flatMap(_.availabilities)
-    println(s"Required availabilities for viva ${viva.student}: $requiredAvailabilities")
 
-    // Sort availabilities by start time
-    val sortedAvailabilities = requiredAvailabilities.sortBy(_.start.to)
-    println(s"Sorted availabilities for viva ${viva.student}: $sortedAvailabilities")
+    // Get the required resources
+    val requiredResources = teachers.filter(t => requiredResourceIds.contains(t.id)) ++
+      externals.filter(e => requiredResourceIds.contains(e.id))
 
-    // Get the duration of the viva
-    val duration = stringToDuration(agendaDuration.to).getOrElse(Duration.ZERO)
-    println(s"Duration for viva ${viva.student}: $duration")
+    // Create a map of resource IDs to their availabilities for only the required resources
+    val availabilitiesByResource = requiredResources.map(resource => resource.id -> resource.availabilities).toMap
 
-    val overlappingAvailabilities = for {
-      a1 <- requiredAvailabilities
-      a2 <- requiredAvailabilities
-      if a1 != a2 && (a1.start.to.isBefore(a2.end.to) || a1.start.to.isEqual(a2.end.to)) && (a1.end.to.isAfter(a2.start.to) || a1.end.to.isEqual(a2.start.to))
-      newAvailability = Availability(
-        if (a1.start.to.isAfter(a2.start.to)) a1.start else a2.start,
-        if (a1.end.to.isBefore(a2.end.to)) a1.end else a2.end,
-        a1.preference + a2.preference // sum up the preferences of the overlapping availabilities
-      )
-      if Duration.between(newAvailability.start.to, newAvailability.end.to).compareTo(duration) >= 0
-    } yield
-      newAvailability
+    // Function to check if an availability is common to all resources
+    def isCommonAvailability(availability: Availability): Boolean =
+      availabilitiesByResource.forall { case (_, availabilities) =>
+        availabilities.exists(a => a.start.to.isBefore(availability.end.to) && a.end.to.isAfter(availability.start.to))
+      }
+
+    // Find common availabilities
+    val commonAvailabilities = requiredResources.flatMap(_.availabilities).filter(isCommonAvailability)
 
     // If there is no common availability slot, return an error
-    if (overlappingAvailabilities.isEmpty)
+    if (commonAvailabilities.isEmpty)
       Left(DomainError.XMLError("No common availability slot found"))
     else
+      val overlappingAvailabilities = for {
+        a1 <- commonAvailabilities
+        a2 <- commonAvailabilities
+        if a1 != a2 && (a1.start.to.isBefore(a2.end.to) || a1.start.to.isEqual(a2.end.to)) && (a1.end.to.isAfter(a2.start.to) || a1.end.to.isEqual(a2.start.to))
+        newAvailability = Availability(
+          if (a1.start.to.isAfter(a2.start.to)) a1.start else a2.start,
+          if (a1.end.to.isBefore(a2.end.to)) a1.end else a2.end,
+          a1.preference + a2.preference // sum up the preferences of the overlapping availabilities
+        )
+      } yield
+        newAvailability
+
       Right(overlappingAvailabilities)
 
   /**
@@ -75,7 +77,7 @@ object Algorithm:
       val duration = stringToDuration(agendaDuration.to).getOrElse(Duration.ZERO)
       println(s"Duration for viva ${viva.student}: $duration")
 
-      val suitableAvailabilities = intersectedAvailabilities.filter(a => a.end.to.isAfter(a.start.to.plus(duration.toMillis, ChronoUnit.MILLIS)))
+      val suitableAvailabilities = intersectedAvailabilities.filter(a => a.end.to.isAfter(a.start.to.plus(duration.toMillis, ChronoUnit.MILLIS)) || a.end.to.isEqual(a.start.to.plus(duration.toMillis, ChronoUnit.MILLIS)))
       println(s"Suitable availabilities for viva ${viva.student}: $suitableAvailabilities")
 
       implicit val availabilityStartOrdering: Ordering[Availability] = Ordering.by(_.start.to)
@@ -317,12 +319,12 @@ object Algorithm:
     case Left(error) => <error>
       {error.toString}
     </error>
-  val agendaUpdate = updateAgenda(xmlNode, "files/test/ms01/simple01_updated.xml")
+  val agendaUpdate = updateAgenda(xmlNode, "C:\\Users\\Luis Serapicos\\Desktop\\1230196_1231304_ncf\\files\\test\\ms01\\simple01_updated.xml")
 
 
   scheduleResult match
     case Right(scheduleElem) =>
-      FileIO.save("files/test/ms01/simple01_testOut.xml", scheduleElem)
+      FileIO.save("C:\\Users\\Luis Serapicos\\Desktop\\1230196_1231304_ncf\\files\\test\\ms01\\simple01_testOut.xml", scheduleElem)
     case Left(error) =>
       val errorElem = <error xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../scheduleError.xsd" message={s"${error}"}/>
-      FileIO.save("files/test/ms01/simple01_testOutError.xml", errorElem)
+      FileIO.save("C:\\Users\\Luis Serapicos\\Desktop\\1230196_1231304_ncf\\files\\test\\ms01\\simple01_testOutError.xml", errorElem)
