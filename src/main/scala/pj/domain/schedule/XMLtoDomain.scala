@@ -15,7 +15,7 @@ import scala.xml.{Elem, Node, PrettyPrinter}
 
 
 object XMLtoDomain:
-  val xml2 = FileIO.load("files/test/ms01/simple01.xml")
+  val xml2 = FileIO.load("C:\\Users\\Luis Serapicos\\Desktop\\1230196_1231304_ncf\\files\\test\\ms01\\simple01.xml")
 
 
   /**
