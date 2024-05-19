@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding="UTF-8"?>
+<agenda 
+xsi:noNamespaceSchemaLocation="../../agenda.xsd" duration="01:00:00" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <vivas>
+        <viva student="John Doe" title="Thesis Title">
+            <president id="T001"/>
+            <advisor id="T002"/>
+        </viva>
+    </vivas>
+    <resources>
+        <teachers>
+            <teacher id="T001" name="Teacher 1"> </teacher>
+        </teachers>
+        <externals>
+            <external id="T002" name="External 1">
+                <availability start="2007-12-03T09:15:00" end="2007-12-03T10:15:00" preference="1"/>
+            </external>
+        </externals>
+    </resources>
+</agenda>
+
