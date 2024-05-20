@@ -146,7 +146,7 @@ object SimpleTypes:
     case Role.Supervisor => 4
 
 
-final case class Preference private(d: Int)
+final case class Preference(d: Int)
 
 object Preference:
   private def unsafePreference(p: Int): Preference = Preference(p)
