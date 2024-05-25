@@ -71,9 +71,8 @@ The properties we have considered relevant for our domain are:
 2. One resource cannot be overlapped in two scheduled vivas: This property ensures that a resource is not double-booked. It helps to prevent scheduling conflicts by ensuring that a resource is not assigned to more than one viva at the same time.
 3. The generated availability intervals must contain at least one interval equal to or greater than the viva duration: This property ensures that the availability intervals generated for resources contain at least one interval that is equal to or greater than the duration of the viva. It helps to ensure that the scheduling algorithm can find a suitable time slot for the viva within the availability intervals of the resources.
 4. The generated resources must have unique identifiers: It helps to prevent conflicts and inconsistencies in the scheduling process by ensuring that each resource is uniquely identified and do not appear more than once in the same viva.
-5. The size of the juries of the scheduled viva must be the same as the original viva: This property ensures that the size of the juries of the scheduled viva is the same as the original viva. It helps to maintain the consistency of the scheduling process by ensuring that the correct number of resources is assigned to each viva.
-6. The total preference of all scheduled vivas must match the total preference of the agenda: This property ensures that the total preference of all scheduled vivas matches the total preference of the agenda.
-7. The generated availability intervals must not overlap each other: This property ensures that the generated availability intervals for resources do not overlap with each other. It helps to prevent scheduling conflicts by ensuring that each resource is available at distinct time intervals.
+5. The total preference of all scheduled vivas must match the total preference of the agenda: This property ensures that the total preference of all scheduled vivas matches the total preference of the agenda.
+6. The generated availability intervals must not overlap each other: This property ensures that the generated availability intervals for resources do not overlap with each other. It helps to prevent scheduling conflicts by ensuring that each resource is available at distinct time intervals.
 
 
 
@@ -142,13 +141,3 @@ The updateAgenda function saves the updated agenda to an XML file. It pretty muc
 
 ## Tests
 Several unit tests for different components of the scheduling system were written to cover domain errors, XML processing, file I/O operations, simple types validation, and XML to domain conversion. For domain errors, each error type is tested to ensure it returns the correct string. XML processing tests check the correct extraction of nodes and attributes from XML, and the traversal of XML elements. File I/O tests verify the loading of XML files and error messages from files. Simple types tests validate the conversion from strings to domain-specific types like agendaDuration, vivaStudent, vivaTitle, etc. XML to domain tests ensure the correct conversion of XML data to domain objects like Viva, Teacher, and External. The tests are designed to ensure that each component of the system works as expected and handles errors correctly.
-
-The functional tests provided assess various functionalities of the scheduling algorithm implemented. These tests cover scenarios such as identifying overlapping availabilities, finding suitable time slots for vivas, scheduling vivas with teachers and externals, and updating the agenda with new availabilities.
-
-To test the intersectAvailabilities algorithm it was evaluated how to correctly identify overlapping availabilities and return a new availability. This test ensures that the algorithm can handle different availability scenarios and produce the expected results.
-
-The subsequent test, about the findEarliestTimeSlot function, its verified the algorithm's capability to find the earliest available time slot that fits the agenda duration, ensuring that it can efficiently schedule vivas without conflicts.
-
-The scheduleViva and scheduleAllVivas tests validate the scheduling process by checking if its possible to successfully assign vivas to available time slots while considering roles. These tests ensure that vivas are scheduled optimally and with the appropriate resources.
-
-Lastly, the tests scheduleVivas and updateAgenda evaluate the algorithm's ability to process XML data and update the agenda accordingly.
