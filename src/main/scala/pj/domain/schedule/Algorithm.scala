@@ -72,22 +72,16 @@ object Algorithm:
    */
   def findEarliestTimeSlot(viva: Viva, teachers: List[Resource], externals: List[Resource], agendaDuration: agendaDuration): Result[Option[Availability]] =
     intersectAvailabilities(viva, teachers, externals, agendaDuration).flatMap { intersectedAvailabilities =>
-      println(s"Intersected availabilities for viva ${viva.student}: $intersectedAvailabilities")
 
       val duration = stringToDuration(agendaDuration.to).getOrElse(Duration.ZERO)
-      println(s"Duration for viva ${viva.student}: $duration")
 
       val suitableAvailabilities = intersectedAvailabilities.filter(a => a.end.to.isAfter(a.start.to.plus(duration.toMillis, ChronoUnit.MILLIS)) || a.end.to.isEqual(a.start.to.plus(duration.toMillis, ChronoUnit.MILLIS)))
-      println(s"Suitable availabilities for viva ${viva.student}: $suitableAvailabilities")
 
       implicit val availabilityStartOrdering: Ordering[Availability] = Ordering.by(_.start.to)
-      println(s"Availability Start Ordering:  $availabilityStartOrdering")
       val earliestTimeSlot = suitableAvailabilities.minByOption(identity)
-      println(s"Earliest time slot for viva ${viva.student}: $earliestTimeSlot")
 
       // Modify the end time of the earliest time slot to be start time + duration
       val modifiedEarliestTimeSlot = earliestTimeSlot.map(a => a.copy(end = availabilityEnd.from(a.start.to.plus(duration.toMillis, ChronoUnit.MILLIS)).getOrElse(a.end)))
-      println(s"Modified earliest time slot for viva ${viva.student}: $modifiedEarliestTimeSlot")
 
       Right(modifiedEarliestTimeSlot)
     }
@@ -149,7 +143,6 @@ object Algorithm:
                   else
                     teacher
                 }
-                println(s"Updated teachers: $updatedTeachers")
 
                 val updatedExternals = externals.map { external =>
                   if (viva.roles.keys.toList.contains(external.id))
@@ -192,9 +185,7 @@ object Algorithm:
                   else
                     external
                 }
-                println(s"Updated externals: $updatedExternals")
 
-                println(s"Scheduled viva ${viva.student} at ${timeSlot.start} - ${timeSlot.end}")
 
                 val vivaPreference = timeSlot.preference.d // get the preference of the viva
                 Right((viva, timeSlot, updatedTeachers, updatedExternals, vivaPreference))

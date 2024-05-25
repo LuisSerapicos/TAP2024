@@ -71,9 +71,8 @@ The properties we have considered relevant for our domain are:
 2. One resource cannot be overlapped in two scheduled vivas: This property ensures that a resource is not double-booked. It helps to prevent scheduling conflicts by ensuring that a resource is not assigned to more than one viva at the same time.
 3. The generated availability intervals must contain at least one interval equal to or greater than the viva duration: This property ensures that the availability intervals generated for resources contain at least one interval that is equal to or greater than the duration of the viva. It helps to ensure that the scheduling algorithm can find a suitable time slot for the viva within the availability intervals of the resources.
 4. The generated resources must have unique identifiers: It helps to prevent conflicts and inconsistencies in the scheduling process by ensuring that each resource is uniquely identified and do not appear more than once in the same viva.
-5. The size of the juries of the scheduled viva must be the same as the original viva: This property ensures that the size of the juries of the scheduled viva is the same as the original viva. It helps to maintain the consistency of the scheduling process by ensuring that the correct number of resources is assigned to each viva.
-6. The total preference of all scheduled vivas must match the total preference of the agenda: This property ensures that the total preference of all scheduled vivas matches the total preference of the agenda.
-7. The generated availability intervals must not overlap each other: This property ensures that the generated availability intervals for resources do not overlap with each other. It helps to prevent scheduling conflicts by ensuring that each resource is available at distinct time intervals.
+5. The total preference of all scheduled vivas must match the total preference of the agenda: This property ensures that the total preference of all scheduled vivas matches the total preference of the agenda.
+6. The generated availability intervals must not overlap each other: This property ensures that the generated availability intervals for resources do not overlap with each other. It helps to prevent scheduling conflicts by ensuring that each resource is available at distinct time intervals.
 
 
 

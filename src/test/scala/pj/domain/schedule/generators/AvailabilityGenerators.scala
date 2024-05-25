@@ -43,7 +43,7 @@ object AvailabilityGenerators:
     val durationMinutes = durationTime.getMinute
     val durationSeconds = durationTime.getSecond
     val endDateTimeWithDuration = start.to.plusHours(durationHours).plusMinutes(durationMinutes).plusSeconds(durationSeconds)
-    
+
     for {
       endDateTime <- Gen.chooseNum(0, 5).map(hours => endDateTimeWithDuration.plusHours(hours)) // Generate end dates around the start date
       dateStr = endDateTime.format(dateFormatter)
@@ -51,16 +51,11 @@ object AvailabilityGenerators:
       availabilityEnd <- end.fold(_ => Gen.fail, end => Gen.const(end))
     } yield availabilityEnd
 
-  
-  def availabilityStartBeforeEnd(start: List[availabilityStart], end: List[availabilityEnd]): Boolean =
-    start.zip(end).forall:
-      case (s, e) => s.to.isBefore(e.to)
 
-  
   def generatePreference: Gen[Preference] =
     Gen.chooseNum(1, 5).map(n => Preference.from(n.toString).getOrElse(Preference(1)))
 
-  
+
   def generateAvailability(duration: agendaDuration): Gen[Availability] = for {
     start <- generateAvailabilityStart
     end <- generateAvailabilityEnd(duration, start)
