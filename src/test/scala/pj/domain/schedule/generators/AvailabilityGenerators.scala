@@ -13,7 +13,7 @@ object AvailabilityGenerators:
   val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd:HH:mm:ss")
   val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
-
+  //RANGE DE DURATIONS - EDGE CASES
 
   def generateDuration: Gen[agendaDuration] =
     //Generate a duration of 1, 1:30 or 2 hours

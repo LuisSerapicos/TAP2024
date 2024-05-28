@@ -23,6 +23,9 @@ object VivaProperties extends Properties("VivaProperties"):
   val MIN_VIVAS = 1
   val MAX_VIVAS = 20
 
+  //PROPERTIES NOTES
+  //INPUTS E OUTPUTS VERIFICAR - ALGORITMO É NAS PROPERTIES
+
   
   property("Check if the viva is scheduled in the intervals in which its resources are available") = Prop.forAll(generateInstersectedAvailabilities) { scheduledVivas =>
     scheduledVivas.fold(_ => false, sv => {
