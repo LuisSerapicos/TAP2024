@@ -1,16 +1,10 @@
 package pj.domain.schedule
 
 import pj.domain.{DomainError, Result}
-import pj.domain.schedule.Domain.{Availability, Resource, Viva}
-import pj.domain.schedule.DomaintoXml.{externalToXml, teacherToXml}
-import pj.domain.schedule.SimpleTypes.{Role, agendaDuration, availabilityEnd, availabilityStart}
-import pj.domain.schedule.Utils.stringToDuration
-import pj.domain.schedule.XMLtoDomain.{getAgendaDuration, getExternals, getPreference, getTeachers, getVivas, xml2}
-import pj.io.FileIO
-
+import pj.domain.schedule.SimpleTypes.{agendaDuration, availabilityDate}
+import pj.domain.schedule.Utils.{dateFormatter, fixAvailabilities, parseDuration}
+import pj.domain.schedule.Domain.{Agenda, Availability2, Resource, Role2, Viva, VivaDuration}
 import java.time.Duration
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 import scala.xml.{Elem, Node}
 
 object Algorithm:
@@ -62,8 +56,10 @@ object Algorithm:
       intersectAvailabilities(resource, requiredResources.filterNot(_ == resource), duration)
     }
 
-    if (suitableAvailabilities.length != viva.roles.length) Left(DomainError.ImpossibleSchedule)
-    else Right((viva, suitableAvailabilities))
+    if (suitableAvailabilities.length != viva.roles.length)
+      Left(DomainError.ImpossibleSchedule)
+    else
+      Right((viva, suitableAvailabilities))
 
 
   /**
@@ -89,236 +85,115 @@ object Algorithm:
       (viva, (start, end, preference))
     }
 
-  /**
-   * Function to schedule a viva.
-   *
-   * @param viva      The viva to be scheduled.
-   * @param teachers  List of teachers.
-   * @param externals List of externals.
-   * @return Result containing the scheduled viva and updated lists of teachers and externals.
-   */
-  def scheduleViva(viva: Viva, teachers: List[Resource], externals: List[Resource], agendaDuration: agendaDuration): Result[(Viva, Availability, List[Resource], List[Resource], Int)] =
-    findEarliestTimeSlot(viva, teachers, externals, agendaDuration).flatMap:
-      case Some(timeSlot) =>
-        stringToDuration(agendaDuration.to) match
-          case Some(duration) =>
-            val endTime = timeSlot.start.to.plus(duration)
-            availabilityStart.from(endTime) match
-              case Right(finalEndTime) =>
-                val updatedTeachers = teachers.map { teacher =>
-                  if (viva.roles.keys.toList.contains(teacher.id))
-                    val updatedAvailabilities = teacher.availabilities.flatMap { availability =>
-                      val beforeStart = availability.start.to.isBefore(timeSlot.start.to)
-                      val afterEnd = availability.end.to.isAfter(finalEndTime.to)
-                      val withinStartEnd = availability.start.to.isBefore(finalEndTime.to) && availability.end.to.isAfter(timeSlot.start.to)
-                      val availabilityDuration = Duration.between(availability.start.to, availability.end.to).compareTo(duration) >= 0
-
-                      (beforeStart, afterEnd, withinStartEnd, availabilityDuration) match
-                        case (true, true, true, true) =>
-                          availabilityEnd.from(timeSlot.start.to) match
-                            case Right(start) =>
-                              availabilityStart.from(finalEndTime.to) match
-                                case Right(end) =>
-                                  List(
-                                    Availability(availability.start, start, availability.preference),
-                                    Availability(end, availability.end, availability.preference)
-                                  ).filter(_ => availabilityDuration)
-                                case Left(_) => List(availability)
-                            case Left(_) => List(availability)
-
-                        case (true, false, true, true) =>
-                          availabilityEnd.from(timeSlot.start.to) match
-                            case Right(timeSlotStart) =>
-                              List(Availability(availability.start, timeSlotStart, availability.preference)).filter(_ => availabilityDuration)
-                            case Left(_) => List(availability)
-
-                        case (false, true, true, true) =>
-                          availabilityStart.from(finalEndTime.to) match
-                            case Right(timeSlotEnd) =>
-                              List(Availability(timeSlotEnd, availability.end, availability.preference)).filter(_ => availabilityDuration)
-                            case Left(_) => List(availability)
-
-                        case (_, _, _, true) => List(availability)
-
-                        case (_, _, _, false) => Nil
-                    }
-                    teacher.copy(availabilities = updatedAvailabilities)
-                  else
-                    teacher
-                }
-
-                val updatedExternals = externals.map { external =>
-                  if (viva.roles.keys.toList.contains(external.id))
-                    val updatedAvailabilities = external.availabilities.flatMap { availability =>
-                      val beforeStart = availability.start.to.isBefore(timeSlot.start.to)
-                      val afterEnd = availability.end.to.isAfter(finalEndTime.to)
-                      val withinStartEnd = availability.start.to.isBefore(finalEndTime.to) && availability.end.to.isAfter(timeSlot.start.to)
-                      val availabilityDuration = Duration.between(availability.start.to, availability.end.to).compareTo(duration) >= 0
-
-                      (beforeStart, afterEnd, withinStartEnd, availabilityDuration) match
-                        case (true, true, true, true) =>
-                          availabilityEnd.from(timeSlot.start.to) match
-                            case Right(start) =>
-                              availabilityStart.from(finalEndTime.to) match
-                                case Right(end) =>
-                                  List(
-                                    Availability(availability.start, start, availability.preference),
-                                    Availability(end, availability.end, availability.preference)
-                                  ).filter(_ => availabilityDuration)
-                                case Left(_) => List(availability)
-                            case Left(_) => List(availability)
-
-                        case (true, false, true, true) =>
-                          availabilityEnd.from(timeSlot.start.to) match
-                            case Right(timeSlotStart) =>
-                              List(Availability(availability.start, timeSlotStart, availability.preference)).filter(_ => availabilityDuration)
-                            case Left(_) => List(availability)
-
-                        case (false, true, true, true) =>
-                          availabilityStart.from(finalEndTime.to) match
-                            case Right(timeSlotEnd) =>
-                              List(Availability(timeSlotEnd, availability.end, availability.preference)).filter(_ => availabilityDuration)
-                            case Left(_) => List(availability)
-
-                        case (_, _, _, true) => List(availability)
-
-                        case (_, _, _, false) => Nil
-                    }
-                    external.copy(availabilities = updatedAvailabilities)
-                  else
-                    external
-                }
-
-
-                val vivaPreference = timeSlot.preference.d // get the preference of the viva
-                Right((viva, timeSlot, updatedTeachers, updatedExternals, vivaPreference))
-              case Left(_) =>
-                Left(DomainError.XMLError("Failed to convert end time to availabilityStart"))
-          case None =>
-            Left(DomainError.XMLError("Failed to parse agenda duration"))
-      case None =>
-        Left(DomainError.ImpossibleSchedule)
 
   /**
-   * Function to schedule all vivas.
+   * This function updates the required resources after a viva has been scheduled.
+   * It returns the updated required resources and the list of vivas with their time slots.
    *
-   * @param vivas     List of vivas to be scheduled.
-   * @param teachers  List of teachers.
-   * @param externals List of externals.
-   * @return Result containing the list of scheduled vivas and total preference.
+   * @param vivas     The list of vivas.
+   * @param resources The list of resources.
+   * @param duration  The duration of the viva.
+   * @return A Result instance containing either a tuple of the list of updated resources and a list of tuples of the viva and its time slot, or a DomainError.
    */
-  def scheduleAllVivas(vivas: List[Viva], teachers: List[Resource], externals: List[Resource], agendaDuration: agendaDuration): Result[(List[(Viva, Availability)], List[Resource], List[Resource], Int)] =
-    vivas.foldLeft[Result[(List[(Viva, Availability)], List[Resource], List[Resource], Int)]](Right((List.empty[(Viva, Availability)], teachers, externals, 0))) { case (acc, viva) =>
-      for {
-        (scheduledVivasList, teachers, externals, totalPreference) <- acc
-        (scheduledViva, timeSlot, updatedTeachers, updatedExternals, vivaPreference) <- scheduleViva(viva, teachers, externals, agendaDuration)
-      } yield ((scheduledViva, timeSlot) :: scheduledVivasList, updatedTeachers, updatedExternals, totalPreference + vivaPreference)
+  def scheduleAllVivas(vivas: List[Viva], resources: List[Resource], duration: agendaDuration): Result[(List[Resource], List[(Viva, (availabilityDate, availabilityDate, Int))])] =
+    vivas.foldLeft[Result[(List[Resource], List[(Viva, (availabilityDate, availabilityDate, Int))])]](Right((resources, List.empty[(Viva, (availabilityDate, availabilityDate, Int))]))) { case (result, viva) =>
+      result.flatMap { case (rl, vl) =>
+        val updatedViva = viva.copy(roles = viva.roles.map { resource =>
+          val updatedAvailabilities = rl.find(_.id == resource.id).map(_.availabilities).getOrElse(resource.availabilities)
+          resource.copy(availabilities = updatedAvailabilities)
+        })
+
+        isResourceAvailable(updatedViva, duration) match
+          case Right((viva, availabilities)) =>
+            findLatestTimeSlot(viva, availabilities, duration) match
+              case Some((viva, timeSlot)) =>
+                val updatedResources = updatedViva.roles.map { resource =>
+                  val newAvailabilities = resource.availabilities.flatMap { availability =>
+                    availabilities.contains(availability) match
+                      case true =>
+                        val updatedAvailability = fixAvailabilities(availability, timeSlot._1, timeSlot._2)
+                        updatedAvailability
+                      case false => List(availability)
+                  }
+                  resource.copy(availabilities = newAvailabilities)
+                }
+
+                Right((updatedResources, (viva, timeSlot) :: vl))
+              case None =>
+                Left(DomainError.ImpossibleSchedule)
+          case Left(error) =>
+            Left(error)
+      }
     }
 
-  /**
-   * Function to generate XML output for scheduled vivas.
-   *
-   * @param scheduledVivas  List of scheduled vivas.
-   * @param totalPreference Total preference.
-   * @return XML element representing the schedule.
-   */
-  def scheduleVivas(xml: Node): Result[Elem] =
-    getAgendaDuration(xml) match
-      case Left(error) => Left(DomainError.XMLError(s"Error getting agenda duration: ${error}"))
-      case Right(agendaDuration) =>
-        getVivas(xml) match
-          case Left(error) => Left(DomainError.XMLError(s"Error getting vivas: ${error}"))
-          case Right(vivas) =>
-            getTeachers(xml) match
-              case Left(error) => Left(DomainError.XMLError(s"Error getting teachers: ${error}"))
-              case Right(teachers) =>
-                getExternals(xml) match
-                  case Left(error) => Left(error)
-                  case Right(externals) =>
-                    getPreference(xml) match
-                      case Left(error) => Left(DomainError.XMLError(s"Error getting preference: ${error}"))
-                      case Right(preference) =>
-                        scheduleAllVivas(vivas, teachers, externals, agendaDuration) match
-                          case Left(error) => Left(error)
-                          case Right((scheduledVivasList, _, _, totalPreference)) =>
-                            val sortedScheduledVivasList = scheduledVivasList.sortBy(_._2.start.to)
-                            Right(
-                              <schedule xsi:noNamespaceSchemaLocation="../../schedule.xsd" totalPreference={totalPreference.toString} xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                                {sortedScheduledVivasList.map { case (viva, availability) =>
-                                <viva student={viva.student.to} title={viva.title.to} start={availability.start.to.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)} end={availability.end.to.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)} preference={availability.preference.d.toString}>
-                                  {viva.roles.toList.sortBy(_._2).map { case (id, role) =>
-                                  role match {
-                                    case Role.President => <president name={id.to}/>
-                                    case Role.Advisor => <advisor name={id.to}/>
-                                    case Role.Coadvisor => <coadvisor name={id.to}/>
-                                    case Role.Supervisor => <supervisor name={id.to}/>
-                                  }
-                                }}
-                                </viva>
-                              }}
-                              </schedule>
-                            )
 
   /**
-   * This function updates the agenda by scheduling all vivas and saving the updated agenda to an XML file.
+   * This function processes the agenda and vivas.
+   * It returns the list of outputs.
    *
-   * @param xml              The XML node representing the input data.
-   * @param originalFilePath The file path where the updated XML will be saved.
-   * @return A Result[Unit] which is a Right[Unit] if the operation is successful, or a Left[DomainError] if an error occurs.
+   * @param duration The duration of the viva.
+   * @param vivas    The list of vivas.
+   * @return A Result instance containing either a list of Agendas, or a DomainError.
    */
-  def updateAgenda(xml: Node, originalFilePath: String): Result[Unit] =
-    for {
-      teachers <- getTeachers(xml)
-      externals <- getExternals(xml)
-      vivas <- getVivas(xml)
-      duration <- getAgendaDuration(xml)
-      scheduledVivas <- scheduleAllVivas(vivas, teachers, externals, duration)
-      (scheduledVivasList, updatedTeachers, updatedExternals, totalPreference) = scheduledVivas
-      teachersXml = updatedTeachers.map(teacher => teacherToXml(teacher, duration))
-      externalsXml = updatedExternals.map(external => externalToXml(external, duration))
-    } yield
-      val sortedScheduledVivasList = scheduledVivasList.sortBy(_._1.student.to)
-      val agendaXml =
-        <agenda xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../agenda.xsd" duration={duration.to}>
-          <vivas>
-            {sortedScheduledVivasList.map { case (viva, availability) =>
-            <viva student={viva.student.to} title={viva.title.to}>
-              {viva.roles.toList.sortBy(_._2).map { case (id, role) =>
-              role match
-                case Role.President => <president id={id.to}/>
-                case Role.Advisor => <advisor id={id.to}/>
-                case Role.Coadvisor => <coadvisor id={id.to}/>
-                case Role.Supervisor => <supervisor id={id.to}/>
-            }}
-            </viva>
-          }}
-          </vivas>
-          <resources>
-            <teachers>
-              {teachersXml}
-            </teachers>
-            <externals>
-              {externalsXml}
-            </externals>
-          </resources>
-        </agenda>
-      FileIO.save(originalFilePath, agendaXml)
+  def scheduleVivas(duration: Result[VivaDuration], vivas: Result[List[Viva]]): Result[List[Agenda]] =
+    duration match
+      case Right(durationF) =>
+        vivas match
+          case Right(vivasF) =>
+            val requiredResources = vivasF.flatMap(_.roles)
+            val scheduledVivas = scheduleAllVivas(vivasF, requiredResources, durationF.duration)
+
+            scheduledVivas match
+              case Right((resources, sVivas)) =>
+                println("Resources: " + resources)
+                val agenda = sVivas.map { case (viva, sViva) =>
+                  Agenda.from(viva, sViva._1, sViva._2, sViva._3)
+                }
+                Right(agenda)
+
+              case Left(error) => Left(error)
+          case Left(error) => Left(error)
+      case Left(error) => Left(error)
 
 
-  val schedule = xml2.flatMap(scheduleVivas)
-  val scheduleResult = xml2.flatMap(scheduleVivas)
+  /**
+   * This function takes an XML Node, parses it to extract the necessary information, 
+   * schedules the vivas using the `newAlgorithm.scheduleVivas` function, and then 
+   * generates an XML output based on the result.
+   *
+   * @param xml The XML Node that contains the data for scheduling the vivas.
+   * @return A Result[Elem] which is a Right[Elem] if the operation is successful, 
+   *         or a Left[DomainError] if an error occurs. The Elem in the Right case 
+   *         is the XML output of the scheduled vivas.
+   */
+  def scheduleVivasXML(xml: Node): Result[Elem] =
+    val agendaResult = XMLtoDomain.getVivaDuration(xml)
+    val result = XMLtoDomain.getVivas(xml)
 
-  val xmlNode: xml.Node = xml2 match
-    case Right(xmlElem) => xmlElem
-    case Left(error) => <error>
-      {error.toString}
-    </error>
-  val agendaUpdate = updateAgenda(xmlNode, "C:\\Users\\Luis Serapicos\\Desktop\\1230196_1231304_ncf\\files\\test\\ms01\\simple01_updated.xml")
+    (result, agendaResult) match
+      case (Left(error), _) => Left(error)
+      case (_, Left(error)) => Left(error)
+      case (Right(vivas: List[Viva]), Right(agenda)) =>
+        val vivaOutputs = scheduleVivas(agendaResult, result)
 
+        vivaOutputs match
+          case Left(error) => Left(error)
+          case Right(output) =>
 
-  scheduleResult match
-    case Right(scheduleElem) =>
-      FileIO.save("C:\\Users\\Luis Serapicos\\Desktop\\1230196_1231304_ncf\\files\\test\\ms01\\simple01_testOut.xml", scheduleElem)
-    case Left(error) =>
-      val errorElem = <error xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../scheduleError.xsd" message={s"${error}"}/>
-      FileIO.save("C:\\Users\\Luis Serapicos\\Desktop\\1230196_1231304_ncf\\files\\test\\ms01\\simple01_testOutError.xml", errorElem)
+            val sumPreferences = output.map(_.totalVivaPreference).sum
+            Right(
+              <schedule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../schedule.xsd"
+                        totalPreference={sumPreferences.toString}>
+                {output.sortBy(vivaOutput => availabilityDate.toLocalDateTime(vivaOutput.start)).map(out =>
+                <viva student={out.viva.student.to} title={out.viva.title.to} start={dateFormatter(availabilityDate.toLocalDateTime(out.start))} end={dateFormatter(availabilityDate.toLocalDateTime(out.end))} preference={out.totalVivaPreference.toString}>
+                  {out.viva.roles.sortBy(_.role).flatMap(resource =>
+                  resource.role match {
+                    case Role2.President => Some(<president name={resource.name.to}/>)
+                    case Role2.Advisor => Some(<advisor name={resource.name.to}/>)
+                    case Role2.Coadvisor => Some(<coadvisor name={resource.name.to}/>)
+                    case Role2.Supervisor => Some(<supervisor name={resource.name.to}/>)
+                    case _ => None
+                  })}
+                </viva>)}
+              </schedule>
+            )

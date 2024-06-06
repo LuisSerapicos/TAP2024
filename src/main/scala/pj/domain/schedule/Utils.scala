@@ -1,8 +1,9 @@
 package pj.domain.schedule
 
 import pj.domain.schedule.SimpleTypes.{agendaDuration, availabilityDate, resourceId}
-import pj.domain.schedule.newDomain.{Availability2, Role2, Viva}
+import pj.domain.schedule.Domain.{Availability2, Role2, Viva}
 
+import java.time.format.DateTimeFormatter
 import java.time.{Duration, LocalDateTime}
 import scala.util.Try
 
@@ -29,6 +30,11 @@ object Utils:
   def parseDate(dateString: String): LocalDateTime = LocalDateTime.parse(dateString)
 
 
+  def dateFormatter(date: LocalDateTime): String =
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+    date.format(formatter)
+
+
   // Function to get the role of a resource from a Viva object
   def getRoleFromViva(viva: Viva, resourceId: resourceId): Role2 =
     viva.roles.find(_.id == resourceId).map(_.role).getOrElse(Role2.None)
@@ -43,10 +49,10 @@ object Utils:
    * @return A list of Availability instances representing the adjusted availability of the resource.
    */
   def fixAvailabilities(availability: Availability2, overlapStart: availabilityDate, overlapEnd: availabilityDate): List[Availability2] =
-    val overlapStartDateTime = overlapStart.toLocalDateTime2
-    val overlapEndDateTime = overlapEnd.toLocalDateTime2
-    val availabilityStartDateTime = availability.start.toLocalDateTime2
-    val availabilityEndDateTime = availability.end.toLocalDateTime2
+    val overlapStartDateTime = overlapStart.to
+    val overlapEndDateTime = overlapEnd.to
+    val availabilityStartDateTime = availability.start.to
+    val availabilityEndDateTime = availability.end.to
 
     val isBefore = overlapEndDateTime.isBefore(availabilityEndDateTime)
     val isAfter = overlapStartDateTime.isAfter(availabilityStartDateTime)

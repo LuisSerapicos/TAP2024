@@ -68,12 +68,17 @@ object SimpleTypes:
   opaque type availabilityDate = LocalDateTime
 
   object availabilityDate:
+    def from(value: String): Result[availabilityDate] =
+      Try(LocalDateTime.parse(value)).fold(
+        _ => Left(DomainError.InvalidAvailabilityDate(value)),
+        date => Right(date)
+      )
     def from(date: LocalDateTime): availabilityDate = date
     def toLocalDateTime(date: availabilityDate): LocalDateTime = date
 
     extension (date: availabilityDate)
       def isBefore(other: availabilityDate): Boolean = date.isBefore(other)
-      def toLocalDateTime2: LocalDateTime = date
+      def to: LocalDateTime = date
       def plusTime(duration: Duration): availabilityDate = date.plus(duration)
 
   

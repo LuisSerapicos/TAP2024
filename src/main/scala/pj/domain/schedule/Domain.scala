@@ -2,8 +2,10 @@ package pj.domain.schedule
 
 import pj.domain.{DomainError, Result}
 import pj.domain.schedule.SimpleTypes.*
-import pj.domain.schedule.Domain.{Availability2, Resource, Role2, Viva}
+import pj.domain.schedule.Domain.{VivaDuration, Availability2, Agenda, Resource, Role2, Viva}
 
+
+import java.time.LocalDateTime
 
 object Domain:
 
@@ -32,6 +34,11 @@ object Domain:
     def isValid: Boolean = availabilities.forall(_.isValid)
 
 
+  case class VivaDuration(duration: agendaDuration)
+
+
+  case class Agenda(viva: Viva, start: availabilityDate, end: availabilityDate, totalVivaPreference: Int)
+
 
   object Viva:
     // Helper method to create and validate a Viva
@@ -53,3 +60,13 @@ object Domain:
       val resource = Resource(id, name, availabilities, role)
       if resource.isValid then Right(resource) else Left(DomainError.InvalidResourceId("Resource has invalid availabilities"))
 
+
+  object VivaDuration:
+    // Helper method to create and validate an Agenda
+    def create(duration: agendaDuration): Result[VivaDuration] =
+      if duration.to.nonEmpty then Right(VivaDuration(duration)) else Left(DomainError.InvalidAgendaDuration("Agenda duration is empty"))
+
+
+  object Agenda:
+    def from(viva: Viva, start: availabilityDate, end: availabilityDate, totalVivaPreference: Int): Agenda =
+      Agenda(viva, start, end, totalVivaPreference)
