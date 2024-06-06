@@ -16,74 +16,77 @@ import scala.xml.{Elem, Node}
 object Algorithm:
 
   /**
-   * Function to intersect availabilities of resources required for a viva.
+   * This function finds the best time for a viva by checking the intersection of availabilities of all resources.
+   * It returns a time slot that is compatible with all the other resources.
    *
-   * @param viva      The viva for which resources are required.
-   * @param teachers  List of teachers.
-   * @param externals List of externals.
-   * @return List of intersected availabilities.
+   * @param currentResource The resource whose availability is being checked.
+   * @param otherResources  The list of other resources.
+   * @param duration        The duration of the viva.
+   * @return An optional Availability instance representing the best time for the viva.
    */
-  def intersectAvailabilities(viva: Viva, teachers: List[Resource], externals: List[Resource], agendaDuration: agendaDuration): Result[List[Availability]] =
-    // Get the ids of the resources required for the viva
-    val requiredResourceIds = viva.roles.keys.toList
+  def intersectAvailabilities(currentResource: Resource, otherResources: List[Resource], duration: agendaDuration): Option[Availability2] =
+    val durationF = parseDuration(duration)
+    val a1 = currentResource.availabilities.sortBy(availability => availabilityDate.toLocalDateTime(availability.start))
+    val a2 = otherResources.map(resource => resource.availabilities.sortBy(availability => availabilityDate.toLocalDateTime(availability.start)))
 
+    a1.find { availability =>
+      a2.forall { otherAvailabilities =>
+        otherAvailabilities.exists { otherAvailability =>
+          val overlapStart = if (availabilityDate.toLocalDateTime(availability.start).isAfter(availabilityDate.toLocalDateTime(otherAvailability.start)))
+            availability.start
+          else
+            otherAvailability.start
 
-    // Get the required resources
-    val requiredResources = teachers.filter(t => requiredResourceIds.contains(t.id)) ++
-      externals.filter(e => requiredResourceIds.contains(e.id))
+          val overlapEnd = if (availabilityDate.toLocalDateTime(availability.end).isBefore(availabilityDate.toLocalDateTime(otherAvailability.end)))
+            availability.end
+          else
+            otherAvailability.end
 
-    // Create a map of resource IDs to their availabilities for only the required resources
-    val availabilitiesByResource = requiredResources.map(resource => resource.id -> resource.availabilities).toMap
-
-    // Function to check if an availability is common to all resources
-    def isCommonAvailability(availability: Availability): Boolean =
-      availabilitiesByResource.forall { case (_, availabilities) =>
-        availabilities.exists(a => a.start.to.isBefore(availability.end.to) && a.end.to.isAfter(availability.start.to))
+          Duration.between(availabilityDate.toLocalDateTime(overlapStart), availabilityDate.toLocalDateTime(overlapEnd)).toMinutes >= durationF.toMinutes
+        }
       }
+    }
 
-    // Find common availabilities
-    val commonAvailabilities = requiredResources.flatMap(_.availabilities).filter(isCommonAvailability)
-
-    // If there is no common availability slot, return an error
-    if (commonAvailabilities.isEmpty)
-      Left(DomainError.XMLError("No common availability slot found"))
-    else
-      val overlappingAvailabilities = for {
-        a1 <- commonAvailabilities
-        a2 <- commonAvailabilities
-        if a1 != a2 && (a1.start.to.isBefore(a2.end.to) || a1.start.to.isEqual(a2.end.to)) && (a1.end.to.isAfter(a2.start.to) || a1.end.to.isEqual(a2.start.to))
-        newAvailability = Availability(
-          if (a1.start.to.isAfter(a2.start.to)) a1.start else a2.start,
-          if (a1.end.to.isBefore(a2.end.to)) a1.end else a2.end,
-          a1.preference + a2.preference // sum up the preferences of the overlapping availabilities
-        )
-      } yield
-        newAvailability
-
-      Right(overlappingAvailabilities)
 
   /**
-   * Function to find the earliest time slot for a viva.
+   * This function checks if a resource is available for a given time interval.
+   * It returns the resource and the availabilities that are available.
    *
-   * @param viva      The viva for which the earliest time slot is required.
-   * @param teachers  List of teachers.
-   * @param externals List of externals.
-   * @return The earliest time slot as an Option.
+   * @param viva     The viva for which the resource availability is being checked.
+   * @param duration The duration of the viva.
+   * @return A Result instance containing either a tuple of the viva and a list of available Availability instances, or a DomainError.
    */
-  def findEarliestTimeSlot(viva: Viva, teachers: List[Resource], externals: List[Resource], agendaDuration: agendaDuration): Result[Option[Availability]] =
-    intersectAvailabilities(viva, teachers, externals, agendaDuration).flatMap { intersectedAvailabilities =>
+  def isResourceAvailable(viva: Viva, duration: agendaDuration): Result[(Viva, List[Availability2])] =
+    val requiredResources = viva.roles.filterNot(_._2 == Role2.None)
+    val suitableAvailabilities = requiredResources.flatMap { resource =>
+      intersectAvailabilities(resource, requiredResources.filterNot(_ == resource), duration)
+    }
 
-      val duration = stringToDuration(agendaDuration.to).getOrElse(Duration.ZERO)
+    if (suitableAvailabilities.length != viva.roles.length) Left(DomainError.ImpossibleSchedule)
+    else Right((viva, suitableAvailabilities))
 
-      val suitableAvailabilities = intersectedAvailabilities.filter(a => a.end.to.isAfter(a.start.to.plus(duration.toMillis, ChronoUnit.MILLIS)) || a.end.to.isEqual(a.start.to.plus(duration.toMillis, ChronoUnit.MILLIS)))
 
-      implicit val availabilityStartOrdering: Ordering[Availability] = Ordering.by(_.start.to)
-      val earliestTimeSlot = suitableAvailabilities.minByOption(identity)
+  /**
+   * This function finds the best time for a viva by checking the latest time slot with the highest preference.
+   * It returns the viva and the time slot with the highest preference.
+   *
+   * @param viva                   The viva for which the best time is being found.
+   * @param suitableAvailabilities The list of suitable availabilities.
+   * @param duration               The duration of the viva.
+   * @return An optional tuple containing the viva and a tuple of the start time, end time, and preference of the time slot.
+   */
+  def findLatestTimeSlot(viva: Viva, suitableAvailabilities: List[Availability2], duration: agendaDuration): Option[(Viva, (availabilityDate, availabilityDate, Int))] =
+    val durationF = parseDuration(duration)
+    val starts = suitableAvailabilities.map(_.start)
+    val latestTimeSlot = starts.maxByOption(availabilityDate.toLocalDateTime)
 
-      // Modify the end time of the earliest time slot to be start time + duration
-      val modifiedEarliestTimeSlot = earliestTimeSlot.map(a => a.copy(end = availabilityEnd.from(a.start.to.plus(duration.toMillis, ChronoUnit.MILLIS)).getOrElse(a.end)))
+    latestTimeSlot.map { modifiedLatestTimeSlot =>
+      val start = modifiedLatestTimeSlot
+      val end = modifiedLatestTimeSlot.plusTime(durationF)
+      val preference = suitableAvailabilities.map(a => a.preference.to).sum
+      println("Overlap: " + start + " - " + end + " Preference: " + preference)
 
-      Right(modifiedEarliestTimeSlot)
+      (viva, (start, end, preference))
     }
 
   /**
