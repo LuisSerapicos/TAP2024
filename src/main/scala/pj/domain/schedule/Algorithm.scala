@@ -7,7 +7,8 @@ import pj.domain.schedule.Domain.{Agenda, Availability2, Resource, Role2, Viva, 
 import java.time.Duration
 import scala.xml.{Elem, Node}
 
-object Algorithm:
+object newAlgorithm:
+
 
   /**
    * This function finds the best time for a viva by checking the intersection of availabilities of all resources.
@@ -18,12 +19,12 @@ object Algorithm:
    * @param duration        The duration of the viva.
    * @return An optional Availability instance representing the best time for the viva.
    */
-  def intersectAvailabilities(currentResource: Resource, otherResources: List[Resource], duration: agendaDuration): Option[Availability2] =
+  def intersectAvailabilities(currentResource: Resource, otherResources: List[Resource], duration: agendaDuration): List[Availability2] =
     val durationF = parseDuration(duration)
     val a1 = currentResource.availabilities.sortBy(availability => availabilityDate.toLocalDateTime(availability.start))
     val a2 = otherResources.map(resource => resource.availabilities.sortBy(availability => availabilityDate.toLocalDateTime(availability.start)))
 
-    a1.find { availability =>
+    val possibleAvailabilities = a1.filter { availability =>
       a2.forall { otherAvailabilities =>
         otherAvailabilities.exists { otherAvailability =>
           val overlapStart = if (availabilityDate.toLocalDateTime(availability.start).isAfter(availabilityDate.toLocalDateTime(otherAvailability.start)))
@@ -40,6 +41,9 @@ object Algorithm:
         }
       }
     }
+    println("Possible Availabilities: " + possibleAvailabilities)
+
+    possibleAvailabilities
 
 
   /**
@@ -55,11 +59,38 @@ object Algorithm:
     val suitableAvailabilities = requiredResources.flatMap { resource =>
       intersectAvailabilities(resource, requiredResources.filterNot(_ == resource), duration)
     }
+    println("Suitable Availabilities: " + suitableAvailabilities)
 
-    if (suitableAvailabilities.length != viva.roles.length)
+
+
+    if suitableAvailabilities.isEmpty then
       Left(DomainError.ImpossibleSchedule)
     else
-      Right((viva, suitableAvailabilities))
+      findBestTimeSlot(suitableAvailabilities, duration) match
+        case Some((totalPreference, timeSlots)) =>
+          Right((viva, timeSlots))
+
+
+  def findBestTimeSlot(suitableAvailabilities: List[Availability2], duration: agendaDuration): Option[(Int, List[Availability2])] =
+    val durationF = parseDuration(duration)
+
+    val combinations = suitableAvailabilities.combinations(3).toList
+
+    val overlappingCombinations = combinations.filter { combination =>
+      val sortedAvailabilities = combination.sortBy(availability => availabilityDate.toLocalDateTime(availability.start))
+      sortedAvailabilities.sliding(2).forall:
+        case List(a, b) => availabilityDate.toLocalDateTime(a.end).isAfter(availabilityDate.toLocalDateTime(b.start))
+        case _ => true
+    }
+
+    val combinationPreferences = overlappingCombinations.map { combination =>
+      val totalPreference = combination.map(_.preference.to).sum
+      (totalPreference, combination)
+    }
+
+    println("Combination Preferences: " + combinationPreferences)
+
+    combinationPreferences.maxByOption(_._1)
 
 
   /**
@@ -74,8 +105,9 @@ object Algorithm:
   def findLatestTimeSlot(viva: Viva, suitableAvailabilities: List[Availability2], duration: agendaDuration): Option[(Viva, (availabilityDate, availabilityDate, Int))] =
     val durationF = parseDuration(duration)
     val starts = suitableAvailabilities.map(_.start)
+    println("Starts: " + starts)
     val latestTimeSlot = starts.maxByOption(availabilityDate.toLocalDateTime)
-
+    println("Latest Time Slot: " + latestTimeSlot)
     latestTimeSlot.map { modifiedLatestTimeSlot =>
       val start = modifiedLatestTimeSlot
       val end = modifiedLatestTimeSlot.plusTime(durationF)
@@ -84,6 +116,8 @@ object Algorithm:
 
       (viva, (start, end, preference))
     }
+
+
 
 
   /**
@@ -107,15 +141,18 @@ object Algorithm:
           case Right((viva, availabilities)) =>
             findLatestTimeSlot(viva, availabilities, duration) match
               case Some((viva, timeSlot)) =>
-                val updatedResources = updatedViva.roles.map { resource =>
-                  val newAvailabilities = resource.availabilities.flatMap { availability =>
-                    availabilities.contains(availability) match
-                      case true =>
-                        val updatedAvailability = fixAvailabilities(availability, timeSlot._1, timeSlot._2)
-                        updatedAvailability
-                      case false => List(availability)
-                  }
-                  resource.copy(availabilities = newAvailabilities)
+                val updatedResources = rl.map { resource =>
+                  if (updatedViva.roles.map(_.id).contains(resource.id))
+                    val newAvailabilities = resource.availabilities.flatMap { availability =>
+                      availabilities.contains(availability) match
+                        case true =>
+                          val updatedAvailability = fixAvailabilities(availability, timeSlot._1, timeSlot._2)
+                          updatedAvailability
+                        case false => List(availability)
+                    }
+                    resource.copy(availabilities = newAvailabilities)
+                  else
+                    resource
                 }
 
                 Right((updatedResources, (viva, timeSlot) :: vl))
@@ -147,7 +184,7 @@ object Algorithm:
               case Right((resources, sVivas)) =>
                 println("Resources: " + resources)
                 val agenda = sVivas.map { case (viva, sViva) =>
-                  Agenda.from(viva, sViva._1, sViva._2, sViva._3)
+                  Agenda.create(viva, sViva._1, sViva._2, sViva._3)
                 }
                 Right(agenda)
 
@@ -157,13 +194,13 @@ object Algorithm:
 
 
   /**
-   * This function takes an XML Node, parses it to extract the necessary information, 
-   * schedules the vivas using the `newAlgorithm.scheduleVivas` function, and then 
+   * This function takes an XML Node, parses it to extract the necessary information,
+   * schedules the vivas using the `newAlgorithm.scheduleVivas` function, and then
    * generates an XML output based on the result.
    *
    * @param xml The XML Node that contains the data for scheduling the vivas.
-   * @return A Result[Elem] which is a Right[Elem] if the operation is successful, 
-   *         or a Left[DomainError] if an error occurs. The Elem in the Right case 
+   * @return A Result[Elem] which is a Right[Elem] if the operation is successful,
+   *         or a Left[DomainError] if an error occurs. The Elem in the Right case
    *         is the XML output of the scheduled vivas.
    */
   def scheduleVivasXML(xml: Node): Result[Elem] =
@@ -174,7 +211,7 @@ object Algorithm:
       case (Left(error), _) => Left(error)
       case (_, Left(error)) => Left(error)
       case (Right(vivas: List[Viva]), Right(agenda)) =>
-        val vivaOutputs = scheduleVivas(agendaResult, result)
+        val vivaOutputs = newAlgorithm.scheduleVivas(agendaResult, result)
 
         vivaOutputs match
           case Left(error) => Left(error)
@@ -197,3 +234,4 @@ object Algorithm:
                 </viva>)}
               </schedule>
             )
+
