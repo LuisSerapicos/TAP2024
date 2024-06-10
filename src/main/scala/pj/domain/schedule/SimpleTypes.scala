@@ -68,6 +68,7 @@ object SimpleTypes:
   opaque type availabilityDate = LocalDateTime
 
   object availabilityDate:
+    implicit val dateOfScheduleOrdering: Ordering[availabilityDate] = Ordering.fromLessThan(_.compareTo(_) < 0)
     def from(value: String): Result[availabilityDate] =
       Try(LocalDateTime.parse(value)).fold(
         _ => Left(DomainError.InvalidAvailabilityDate(value)),
@@ -78,6 +79,7 @@ object SimpleTypes:
 
     extension (date: availabilityDate)
       def isBefore(other: availabilityDate): Boolean = date.isBefore(other)
+      def isAfter(other: availabilityDate): Boolean = date.isAfter(other)
       def to: LocalDateTime = date
       def plusTime(duration: Duration): availabilityDate = date.plus(duration)
 

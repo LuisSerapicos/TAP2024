@@ -62,11 +62,13 @@ object Domain:
 
 
   object VivaDuration:
-    // Helper method to create and validate an Agenda
+    // Helper method to create and validate a VivaDuration
     def create(duration: agendaDuration): Result[VivaDuration] =
       if duration.to.nonEmpty then Right(VivaDuration(duration)) else Left(DomainError.InvalidAgendaDuration("Agenda duration is empty"))
 
 
   object Agenda:
-    def from(viva: Viva, start: availabilityDate, end: availabilityDate, totalVivaPreference: Int): Agenda =
+    // Helper method to create and validate an Agenda
+    def create(viva: Viva, start: availabilityDate, end: availabilityDate, totalVivaPreference: Int): Agenda =
       Agenda(viva, start, end, totalVivaPreference)
+      

@@ -27,6 +27,9 @@ The scheduling of vivas is a complex problem that involves multiple resources an
 
 - Hungarian Algorithm: The Hungarian Algorithm is used to find the maximum weighted matching in a bipartite graph, a matching that pairs each resource (one set of vertices) with a time slot (the other set of vertices) in a way that maximizes the total preference (the weights on the edges). But the problem is that each resource can have multiple availabilities, and the Hungarian Algorithm only works with one-to-one matching, so it would not be the best choice for our problem.
 
+- Weighted Interval Scheduling Algorithm: This algorithm is used to find the maximum weight subset of intervals that do not overlap. It can be adapted to our problem by considering the preferences of the resources as the weights of the intervals and ensuring that the selected intervals do not overlap. This algorithm could be a good choice for our problem since it considers the preferences of the resources and ensures that the selected time slots do not overlap.
+
+
 ---
 
 ## MS02
