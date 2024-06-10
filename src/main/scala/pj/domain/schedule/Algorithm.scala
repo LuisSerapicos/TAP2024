@@ -7,7 +7,8 @@ import pj.domain.schedule.Domain.{Agenda, Availability2, Resource, Role2, Viva, 
 import java.time.Duration
 import scala.xml.{Elem, Node}
 
-object Algorithm:
+object newAlgorithm:
+
 
 
   /**
