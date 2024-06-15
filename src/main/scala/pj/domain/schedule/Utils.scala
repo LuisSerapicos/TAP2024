@@ -40,6 +40,24 @@ object Utils:
     viva.roles.find(_.id == resourceId).map(_.role).getOrElse(Role2.None)
 
 
+  // Check if two scheduled vivas have overlapping availabilities
+  def overlaps(slot1: (Viva, List[(Int, List[Availability2])]), slot2: (Viva, List[(Int, List[Availability2])])): Boolean =
+    val (_, list1) = slot1
+    val (_, list2) = slot2
+    list1.flatMap(_._2).exists(a1 => list2.flatMap(_._2).exists(a2 => !(availabilityDate.toLocalDateTime(a1.end).isBefore(availabilityDate.toLocalDateTime(a2.start)) || availabilityDate.toLocalDateTime(a2.end).isBefore(availabilityDate.toLocalDateTime(a1.start)))))
+
+  def anyOverlap(slots: List[(Viva, List[(Int, List[Availability2])])]): Boolean =
+    slots.combinations(2).exists { case List(slot1, slot2) =>
+      overlaps(slot1, slot2)
+    }
+
+
+  // Function to generate a combination of a possible schedule with a corresponding viva
+  def sequence[A](list: List[List[A]]): List[List[A]] = list match
+    case Nil => List(Nil)
+    case h :: t => for (xh <- h; xt <- sequence(t)) yield xh :: xt
+
+
   /**
    * This function adjusts the availability of a resource based on overlaps with a given time interval.
    *

@@ -2,15 +2,13 @@ package pj.domain.schedule
 
 import pj.domain.{DomainError, Result}
 import pj.domain.schedule.SimpleTypes.{agendaDuration, availabilityDate}
-import pj.domain.schedule.Utils.{dateFormatter, fixAvailabilities, parseDuration}
+import pj.domain.schedule.Utils.{anyOverlap, dateFormatter, fixAvailabilities, parseDuration, sequence}
 import pj.domain.schedule.Domain.{Agenda, Availability2, Resource, Role2, Viva, VivaDuration}
+
 import java.time.Duration
 import scala.xml.{Elem, Node}
 
 object Algorithm:
-
-
-
 
 
   /**
@@ -74,6 +72,14 @@ object Algorithm:
         case Nil => Left(DomainError.ImpossibleSchedule)
 
 
+  /**
+   * This function finds all possible time slots for a given number of resources.
+   * It returns a list of tuples containing the total preference and the list of time slots.
+   * @param suitableAvailabilities
+   * @param duration
+   * @param numResources
+   * @return A list of tuples containing the total preference and the list of time slots.
+   */
   def findAllTimeSlots(suitableAvailabilities: List[Availability2], duration: agendaDuration, numResources: Int): List[(Int, List[Availability2])] =
     val durationF = parseDuration(duration)
 
@@ -88,7 +94,7 @@ object Algorithm:
 
     val combinationPreferences = overlappingCombinations.flatMap { combination =>
       val totalPreference = combination.map(_.preference.to).sum
-      findLatestTimeSlot2(combination, duration).map { case (start, end, _) =>
+      findLatestTimeSlotWithNoViva(combination, duration).map { case (start, end, _) =>
         val timeSlot = Availability2(start, end, Preference(totalPreference))
         (totalPreference, List(timeSlot))
       }
@@ -97,6 +103,43 @@ object Algorithm:
     println("Combination Preferences: " + combinationPreferences)
 
     combinationPreferences
+
+
+  /**
+   * This function finds the global max preference for the vivas. It returns the total preference and the list of vivas with their time slots.
+   * It does this by generating all possible combinations of time slots for each viva and then selecting the combination with the highest total preference.
+   * @param vivas
+   * @param allTimeSlots
+   * @return A tuple containing the total preference and the list of vivas with their time slots.
+   */
+  def findGlobalPreference(vivas: Result[List[Viva]], allTimeSlots: List[List[(Int, List[Availability2])]]): (Int, List[(Viva, List[Availability2])]) =
+    vivas match
+      case Right(vivas) =>
+        val allCombinationsPerViva = allTimeSlots.map(_.map(List(_)))   //Generate all combinations per viva
+
+        val allCombinations = sequence(allCombinationsPerViva).map(vivas.zip(_)).filterNot(anyOverlap)
+
+        // Reunite the availabilities that dont overlap
+        val validCombinations = allCombinations.filter { combination =>
+          val sortedCombination = combination.flatMap(_._2.flatMap(_._2)).sortBy(availability => availabilityDate.toLocalDateTime(availability.start))
+          sortedCombination.zip(sortedCombination.drop(1)).forall { case (a1, a2) => availabilityDate.toLocalDateTime(a1.end).isBefore(availabilityDate.toLocalDateTime(a2.start)) }
+        }
+
+        // Calculate the totalPreference for each valid combination
+        val combinationPreferences = validCombinations.map { combination =>
+          val totalPreference = combination.flatMap(_._2.map(_._1)).sum
+          (totalPreference, combination.flatMap { case (viva, list) => list.map { case (_, availabilities) => (viva, availabilities) } })
+        }
+
+        // Get the combination of scheduled vivas with the maximum total preference
+        combinationPreferences match
+          case head :: tail =>
+            tail.foldLeft(head) { (max, current) =>
+              println("Current: " + current._1 + " Max: " + max._1)
+              if (current._1 > max._1) current else max
+            }
+          case Nil => (0, List.empty[(Viva, List[Availability2])])
+      case Left(error) => (0, List.empty[(Viva, List[Availability2])])
 
 
   /**
@@ -111,35 +154,35 @@ object Algorithm:
   def findLatestTimeSlot(viva: Viva, suitableAvailabilities: List[Availability2], duration: agendaDuration): Option[(Viva, (availabilityDate, availabilityDate, Int))] =
     val durationF = parseDuration(duration)
     val starts = suitableAvailabilities.map(_.start)
-    println("Starts: " + starts)
     val latestTimeSlot = starts.maxByOption(availabilityDate.toLocalDateTime)
-    println("Latest Time Slot: " + latestTimeSlot)
+
     latestTimeSlot.map { modifiedLatestTimeSlot =>
       val start = modifiedLatestTimeSlot
       val end = modifiedLatestTimeSlot.plusTime(durationF)
       val preference = suitableAvailabilities.map(a => a.preference.to).sum
-      println("Overlap: " + start + " - " + end + " Preference: " + preference)
 
       (viva, (start, end, preference))
     }
 
 
-  def findLatestTimeSlot2(suitableAvailabilities: List[Availability2], duration: agendaDuration): Option[(availabilityDate, availabilityDate, Int)] =
+  /**
+   * This function finds the latest time slot with the highest preference. It does not consider the vivas.
+   * @param suitableAvailabilities
+   * @param duration
+   * @return An optional tuple containing the start time, end time, and preference of the time slot.
+   */
+  def findLatestTimeSlotWithNoViva(suitableAvailabilities: List[Availability2], duration: agendaDuration): Option[(availabilityDate, availabilityDate, Int)] =
     val durationF = parseDuration(duration)
     val starts = suitableAvailabilities.map(_.start)
-    println("Starts: " + starts)
     val latestTimeSlot = starts.maxByOption(availabilityDate.toLocalDateTime)
-    println("Latest Time Slot: " + latestTimeSlot)
+
     latestTimeSlot.map { modifiedLatestTimeSlot =>
       val start = modifiedLatestTimeSlot
       val end = modifiedLatestTimeSlot.plusTime(durationF)
       val preference = suitableAvailabilities.map(a => a.preference.to).sum
-      println("Overlap: " + start + " - " + end + " Preference: " + preference)
 
       (start, end, preference)
     }
-
-
 
 
   /**
@@ -216,8 +259,33 @@ object Algorithm:
 
 
   /**
+   * This function schedules the vivas with the maximum preference.
+   * It returns the total preference and the list of vivas with their time slots.
+   * @param duration
+   * @param vivas
+   * @return A tuple containing the total preference and the list of vivas with their time slots.
+   */
+  def scheduleMaxPreferenceVivas(duration: Result[VivaDuration], vivas: Result[List[Viva]]): (Int, List[(Viva, List[Availability2])]) =
+    duration match
+      case Right(durationF) =>
+        scheduleVivas(duration, vivas) match
+          case Right(agenda) =>
+            val allTimeSlots = agenda.map { agendaItem =>
+              val suitableAvailabilities = agendaItem.viva.roles.flatMap(_.availabilities)
+              val numResources = agendaItem.viva.roles.length
+              findAllTimeSlots(suitableAvailabilities, durationF.duration, numResources)
+            }
+            //println("All Time Slots: " + allTimeSlots)
+            findGlobalPreference(vivas, allTimeSlots)
+          case Left(error) =>
+            (0, List.empty[(Viva, List[Availability2])])
+      case Left(error) =>
+        (0, List.empty[(Viva, List[Availability2])])
+
+
+  /**
    * This function takes an XML Node, parses it to extract the necessary information,
-   * schedules the vivas using the `newAlgorithm.scheduleVivas` function, and then
+   * schedules the vivas using the `scheduleMaxPreferenceVivas` function, and then
    * generates an XML output based on the result.
    *
    * @param xml The XML Node that contains the data for scheduling the vivas.
@@ -233,27 +301,23 @@ object Algorithm:
       case (Left(error), _) => Left(error)
       case (_, Left(error)) => Left(error)
       case (Right(vivas: List[Viva]), Right(agenda)) =>
-        val vivaOutputs = scheduleVivas(agendaResult, result)
+        val (totalPreference, vivaOutputs) = scheduleMaxPreferenceVivas(agendaResult, result)
 
-        vivaOutputs match
-          case Left(error) => Left(error)
-          case Right(output) =>
-
-            val sumPreferences = output.map(_.totalVivaPreference).sum
-            Right(
-              <schedule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../schedule.xsd"
-                        totalPreference={sumPreferences.toString}>
-                {output.sortBy(vivaOutput => availabilityDate.toLocalDateTime(vivaOutput.start)).map(out =>
-                <viva student={out.viva.student.to} title={out.viva.title.to} start={dateFormatter(availabilityDate.toLocalDateTime(out.start))} end={dateFormatter(availabilityDate.toLocalDateTime(out.end))} preference={out.totalVivaPreference.toString}>
-                  {out.viva.roles.sortBy(_.role).flatMap(resource =>
-                  resource.role match {
-                    case Role2.President => Some(<president name={resource.name.to}/>)
-                    case Role2.Advisor => Some(<advisor name={resource.name.to}/>)
-                    case Role2.Coadvisor => Some(<coadvisor name={resource.name.to}/>)
-                    case Role2.Supervisor => Some(<supervisor name={resource.name.to}/>)
-                    case _ => None
-                  })}
-                </viva>)}
-              </schedule>
-            )
+        Right(
+          <schedule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../schedule.xsd"
+                    totalPreference={totalPreference.toString}>
+            {vivaOutputs.sortBy(vivaOutput => availabilityDate.toLocalDateTime(vivaOutput._2.head.start)).map { case (viva, availabilities) =>
+            <viva student={viva.student.to} title={viva.title.to} start={dateFormatter(availabilityDate.toLocalDateTime(availabilities.head.start))} end={dateFormatter(availabilityDate.toLocalDateTime(availabilities.head.end))} preference={availabilities.map(_.preference.d).sum.toString}>
+              {viva.roles.sortBy(_.role).flatMap(resource =>
+              resource.role match {
+                case Role2.President => Some(<president name={resource.name.to}/>)
+                case Role2.Advisor => Some(<advisor name={resource.name.to}/>)
+                case Role2.Coadvisor => Some(<coadvisor name={resource.name.to}/>)
+                case Role2.Supervisor => Some(<supervisor name={resource.name.to}/>)
+                case _ => None
+              })}
+            </viva>
+          }}
+          </schedule>
+        )
 
