@@ -7,7 +7,7 @@ import pj.domain.schedule.Domain.{Agenda, Availability2, Resource, Role2, Viva, 
 import java.time.Duration
 import scala.xml.{Elem, Node}
 
-object newAlgorithm:
+object Algorithm:
 
 
 
@@ -65,19 +65,19 @@ object newAlgorithm:
     println("Suitable Availabilities: " + suitableAvailabilities)
 
 
-
     if suitableAvailabilities.isEmpty then
       Left(DomainError.ImpossibleSchedule)
     else
-      findBestTimeSlot(suitableAvailabilities, duration) match
-        case Some((totalPreference, timeSlots)) =>
-          Right((viva, timeSlots))
+      findAllTimeSlots(suitableAvailabilities, duration, requiredResources.length) match
+        case head :: tail =>
+          Right((viva, head._2))
+        case Nil => Left(DomainError.ImpossibleSchedule)
 
 
-  def findBestTimeSlot(suitableAvailabilities: List[Availability2], duration: agendaDuration): Option[(Int, List[Availability2])] =
+  def findAllTimeSlots(suitableAvailabilities: List[Availability2], duration: agendaDuration, numResources: Int): List[(Int, List[Availability2])] =
     val durationF = parseDuration(duration)
 
-    val combinations = suitableAvailabilities.combinations(3).toList
+    val combinations = suitableAvailabilities.combinations(numResources).toList
 
     val overlappingCombinations = combinations.filter { combination =>
       val sortedAvailabilities = combination.sortBy(availability => availabilityDate.toLocalDateTime(availability.start))
@@ -86,14 +86,17 @@ object newAlgorithm:
         case _ => true
     }
 
-    val combinationPreferences = overlappingCombinations.map { combination =>
+    val combinationPreferences = overlappingCombinations.flatMap { combination =>
       val totalPreference = combination.map(_.preference.to).sum
-      (totalPreference, combination)
+      findLatestTimeSlot2(combination, duration).map { case (start, end, _) =>
+        val timeSlot = Availability2(start, end, Preference(totalPreference))
+        (totalPreference, List(timeSlot))
+      }
     }
 
     println("Combination Preferences: " + combinationPreferences)
 
-    combinationPreferences.maxByOption(_._1)
+    combinationPreferences
 
 
   /**
@@ -118,6 +121,22 @@ object newAlgorithm:
       println("Overlap: " + start + " - " + end + " Preference: " + preference)
 
       (viva, (start, end, preference))
+    }
+
+
+  def findLatestTimeSlot2(suitableAvailabilities: List[Availability2], duration: agendaDuration): Option[(availabilityDate, availabilityDate, Int)] =
+    val durationF = parseDuration(duration)
+    val starts = suitableAvailabilities.map(_.start)
+    println("Starts: " + starts)
+    val latestTimeSlot = starts.maxByOption(availabilityDate.toLocalDateTime)
+    println("Latest Time Slot: " + latestTimeSlot)
+    latestTimeSlot.map { modifiedLatestTimeSlot =>
+      val start = modifiedLatestTimeSlot
+      val end = modifiedLatestTimeSlot.plusTime(durationF)
+      val preference = suitableAvailabilities.map(a => a.preference.to).sum
+      println("Overlap: " + start + " - " + end + " Preference: " + preference)
+
+      (start, end, preference)
     }
 
 
@@ -214,7 +233,7 @@ object newAlgorithm:
       case (Left(error), _) => Left(error)
       case (_, Left(error)) => Left(error)
       case (Right(vivas: List[Viva]), Right(agenda)) =>
-        val vivaOutputs = newAlgorithm.scheduleVivas(agendaResult, result)
+        val vivaOutputs = scheduleVivas(agendaResult, result)
 
         vivaOutputs match
           case Left(error) => Left(error)
