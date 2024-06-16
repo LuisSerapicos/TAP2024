@@ -1,9 +1,11 @@
 package pj.domain.schedule
 
 
-import java.time.LocalDateTime
+import java.time.{Duration, LocalDate, LocalDateTime}
 import pj.domain.{DomainError, Result}
 import pj.domain.DomainError.*
+
+import scala.util.Try
 
 object SimpleTypes:
 
@@ -61,6 +63,27 @@ object SimpleTypes:
     extension (name: teacherName)
       def to: String = name
 
+
+
+  opaque type availabilityDate = LocalDateTime
+
+  object availabilityDate:
+    implicit val dateOfScheduleOrdering: Ordering[availabilityDate] = Ordering.fromLessThan(_.compareTo(_) < 0)
+    def from(value: String): Result[availabilityDate] =
+      Try(LocalDateTime.parse(value)).fold(
+        _ => Left(DomainError.InvalidAvailabilityDate(value)),
+        date => Right(date)
+      )
+    def from(date: LocalDateTime): availabilityDate = date
+    def toLocalDateTime(date: availabilityDate): LocalDateTime = date
+
+    extension (date: availabilityDate)
+      def isBefore(other: availabilityDate): Boolean = date.isBefore(other)
+      def isAfter(other: availabilityDate): Boolean = date.isAfter(other)
+      def to: LocalDateTime = date
+      def plusTime(duration: Duration): availabilityDate = date.plus(duration)
+
+  
 
   opaque type availabilityStart = LocalDateTime
 
@@ -137,13 +160,14 @@ object SimpleTypes:
       def to: String = name
 
   enum Role:
-    case President, Advisor, Coadvisor, Supervisor
+    case President, Advisor, Coadvisor, Supervisor, None
 
   implicit val roleOrdering: Ordering[Role] = Ordering.by:
     case Role.President => 1
     case Role.Advisor => 2
     case Role.Coadvisor => 3
     case Role.Supervisor => 4
+    case _ => 5
 
 
 final case class Preference(d: Int)

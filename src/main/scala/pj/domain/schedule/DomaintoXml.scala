@@ -1,6 +1,6 @@
 package pj.domain.schedule
 
-import pj.domain.schedule.Domain.{Availability, Resource, Viva}
+import pj.domain.schedule.Domain.{Availability2, Resource, Viva}
 import pj.domain.schedule.SimpleTypes.{Role, agendaDuration}
 import pj.domain.schedule.Utils.stringToDuration
 
@@ -40,7 +40,7 @@ object DomaintoXml:
    * @param agendaDuration The duration of the agenda.
    * @return An Option[Elem] which is a Some[Elem] if the availability duration is greater than or equal to the agenda duration, or a None otherwise.
    */
-  def availabilityToXml(availability: Availability, agendaDuration: agendaDuration): Option[Elem] =
+  def availabilityToXml(availability: Availability2, agendaDuration: agendaDuration): Option[Elem] =
     val duration = stringToDuration(agendaDuration.to).getOrElse(Duration.ZERO)
     val availabilityDuration = Duration.between(availability.start.to, availability.end.to)
     if (availabilityDuration.compareTo(duration) >= 0)

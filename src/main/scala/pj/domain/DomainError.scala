@@ -24,3 +24,6 @@ enum DomainError:
   case InvalidResourceName(resourceName: String)
   case InvalidNumberOfRoles(roles: String)
   case ImpossibleSchedule
+  case ImpossibleSchedule2(s:String)
+
+  case InvalidAvailabilityDate(date: String)

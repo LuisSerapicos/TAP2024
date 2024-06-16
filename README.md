@@ -9,6 +9,28 @@
 
 This project revolves around the scheduling process involves multiple entities and must adhere to various constraints to ensure optimal timing for each viva. At its essence, the project entails developing two algorithms, using functional programming, that iteratively enhance the scheduling process, aiming to achieve an optimal solution.
 
+## MS03
+
+### The problem
+
+For this milestone3, we were tasked with implementing a new algorithm to schedule vivas. The new algorithm should consider the preferences of the resources involved in the vivas, aiming to maximize the total preference of the scheduled vivas. The algorithm should prioritize time slots with higher preferences when scheduling vivas, ensuring that the resources' preferences are taken into account during the scheduling process.
+
+### Research
+
+The scheduling of vivas is a complex problem that involves multiple resources and constraints. The scheduling process must consider the availability of resources, the duration of the vivas, and the preferences of the resources involved. By incorporating preferences into the scheduling algorithm, we can optimize the allocation of resources and improve the overall scheduling process.
+
+- Brute Force Algorithm: The brute force algorithm generates all possible combinations of vivas and evaluates the total preference of each combination. It then selects the combination with the highest total preference as the optimal schedule. While this approach guarantees an optimal solution, it is computationally expensive and impractical for large amounts of data (like the XML files provided).
+
+- Greedy Algorithm: With the greedy algorithm, we could iteratively select the time slot that has the maximum preference among all unassigned vivas and availabilities, which can lead to a good solution in many cases. However, it makes the locally optimal choice at each decision point with the hope that these local decisions lead to a global optimum. This means that they can sometimes make decisions that seem best in the short term but are not optimal when considering the entire problem.
+
+- Hopcroft–Karp algorithm: This algorithm is used to find the maximum cardinality matching in a bipartite graph. It could be used to find the maximum preference (weights) matching between vivas and resources, ensuring that the total preference of the scheduled vivas is maximized, but since we are not only interested in the maximum cardinality but also in the total preference, this algorithm would not be the best choice.
+
+- Hungarian Algorithm: The Hungarian Algorithm is used to find the maximum weighted matching in a bipartite graph, a matching that pairs each resource (one set of vertices) with a time slot (the other set of vertices) in a way that maximizes the total preference (the weights on the edges). But the problem is that each resource can have multiple availabilities, and the Hungarian Algorithm only works with one-to-one matching, so it would not be the best choice for our problem.
+
+- Weighted Interval Scheduling Algorithm: This algorithm is used to find the maximum weight subset of intervals that do not overlap. It can be adapted to our problem by considering the preferences of the resources as the weights of the intervals and ensuring that the selected intervals do not overlap. This algorithm could be a good choice for our problem since it considers the preferences of the resources and ensures that the selected time slots do not overlap.
+
+
+---
 
 ## MS02
 

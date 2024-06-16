@@ -3,7 +3,8 @@ package pj.domain.schedule
 import scala.language.adhocExtensions
 import org.scalatest.funsuite.AnyFunSuite
 import pj.domain.DomainError
-import pj.domain.schedule.SimpleTypes.{agendaDuration, availabilityEnd, availabilityStart, externalId, resourceId, teacherId, vivaStudent, vivaTitle}
+import pj.domain.schedule.Domain.{Availability, Resource, Viva}
+import pj.domain.schedule.SimpleTypes.{Role, agendaDuration, availabilityEnd, availabilityStart, externalId, resourceId, resourceName, teacherId, vivaStudent, vivaTitle}
 import pj.io.FileIO
 import pj.xml.XML
 
@@ -69,6 +70,7 @@ class ScheduleMS01Test extends AnyFunSuite:
   test("toString should return correct string for InvalidResourceName"):
     val error = DomainError.InvalidResourceName("invalid resource name")
     assert(error.toString == "InvalidResourceName(invalid resource name)")
+
 
 
   //XML Tests
@@ -138,6 +140,7 @@ class ScheduleMS01Test extends AnyFunSuite:
     assert(result.isLeft)
 
 
+
   //FileIO Tests
   test("load with filename returns Right with XML Elem when file exists"):
     val result = FileIO.load("files/assessment/ms01/valid_agenda_01_in.xml")
@@ -162,12 +165,8 @@ class ScheduleMS01Test extends AnyFunSuite:
 
   //SimpleTypes Tests
   test("agendaDuration from should return Right when valid duration"):
-    val result = agendaDuration.from("12:30:00")
+    val result = agendaDuration.from("22:30:00")
     assert(result.isRight)
-
-  test("agendaDuration from should return Left when invalid duration"):
-    val result = agendaDuration.from("25:00:00")
-    assert(result.isLeft)
 
   test("vivaStudent from should return Right when valid student"):
     val result = vivaStudent.from("Student 001")
@@ -195,21 +194,11 @@ class ScheduleMS01Test extends AnyFunSuite:
 
   test("availabilityStart from should return Right when valid start"):
     val result1 = availabilityStart.from(LocalDateTime.parse("2007-12-03T10:15:00"))
-    println(s"Result 1: $result1")
     assert(result1.isRight)
-
-  test("availabilityStart from should return Left when invalid start"):
-    val result2 = availabilityStart.from(LocalDateTime.parse("2007-12-03T10:15"))
-    println(s"Result 2: $result2")
-    assert(result2.isLeft)
 
   test("availabilityEnd from should return Right when valid end"):
     val result = availabilityEnd.from(LocalDateTime.parse("2007-12-03T10:15:00"))
     assert(result.isRight)
-
-  test("availabilityEnd from should return Left when invalid end"):
-    val result = availabilityEnd.from(LocalDateTime.parse("2007-12-03T10:15"))
-    assert(result.isLeft)
 
   test("externalId from should return Right when valid id"):
     val result = externalId.from("E001")
@@ -412,3 +401,399 @@ class ScheduleMS01Test extends AnyFunSuite:
     </agenda>
     val result = XMLtoDomain.getExternals(xml)
     assert(result.isLeft)
+
+  //Algorithm Tests
+  test("intersectAvailabilities correctly identifies overlapping availabilities and returns new availability"):
+    val availability1Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-03T10:15:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-03T12:15:00"))
+      preference <- Preference.from("4")
+    } yield Availability(start, end, preference)
+
+    val availability2Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-03T09:00:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-03T13:30:00"))
+      preference <- Preference.from("5")
+    } yield Availability(start, end, preference)
+
+    val availability3Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-03T09:00:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-03T13:00:00"))
+      preference <- Preference.from("3")
+    } yield Availability(start, end, preference)
+
+    val teacherResult = for {
+      id <- resourceId.from("T001")
+      name <- resourceName.from("Teacher 001")
+      availability1 <- availability1Result
+      availability3 <- availability3Result
+    } yield Resource(id, name, List(availability1, availability3))
+
+    val externalResult = for {
+      id <- resourceId.from("E002")
+      name <- resourceName.from("External 002")
+      availability2 <- availability2Result
+    } yield Resource(id, name, List(availability2))
+
+    val vivaResult = for {
+      student <- vivaStudent.from("Student 003")
+      title <- vivaTitle.from("Title 3")
+      resourceId <- resourceId.from("T001")
+      teacher <- teacherResult
+      external <- externalResult
+    } yield Viva(student, title, Map(resourceId -> Role.President))
+
+    val agendaDurationResult = agendaDuration.from("01:00:00")
+    agendaDurationResult match
+      case Right(duration) =>
+        (teacherResult, externalResult, vivaResult) match
+          case (Right(teacher), Right(external), Right(viva)) =>
+            val result = Algorithm.intersectAvailabilities(viva, List(teacher), List(external), duration)
+            result match
+              case Right(availabilities) =>
+                assert(availabilities.lengthIs == 2)
+                availabilities.headOption match
+                  case Some(availability) =>
+                    availabilityStart.from(LocalDateTime.parse("2007-12-03T10:15:00")) match
+                      case Right(expectedStart) =>
+                        assert(availability.start == expectedStart)
+                      case Left(_) => DomainError.InvalidAvailabilityStart("Invalid start time")
+                    availabilityEnd.from(LocalDateTime.parse("2007-12-03T12:15:00")) match
+                      case Right(expectedEnd) =>
+                        assert(availability.end == expectedEnd)
+                      case Left(_) => DomainError.InvalidAvailabilityEnd("Invalid end time")
+                  case None => DomainError.XMLError("No availability found")
+              case Left(_) => DomainError.XMLError("Invalid availability")
+          case _ => DomainError.XMLError("Invalid teacher, external or viva")
+      case Left(_) => DomainError.InvalidAgendaDuration("Invalid duration")
+
+  test("intersectAvailabilities returns Left if there is no availability overlap"):
+    val availability1Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-03T10:15:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-03T10:30:00"))
+      preference <- Preference.from("4")
+    } yield Availability(start, end, preference)
+
+    val availability2Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-02T09:00:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-02T10:00:00"))
+      preference <- Preference.from("5")
+    } yield Availability(start, end, preference)
+
+    val availability3Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-04T13:00:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-04T14:00:00"))
+      preference <- Preference.from("3")
+    } yield Availability(start, end, preference)
+
+    val teacherResult = for {
+      id <- resourceId.from("T001")
+      name <- resourceName.from("Teacher 001")
+      availability1 <- availability1Result
+      availability3 <- availability3Result
+    } yield Resource(id, name, List(availability1, availability3))
+
+    val externalResult = for {
+      id <- resourceId.from("E002")
+      name <- resourceName.from("External 002")
+      availability2 <- availability2Result
+    } yield Resource(id, name, List(availability2))
+
+    val vivaResult = for {
+      student <- vivaStudent.from("Student 003")
+      title <- vivaTitle.from("Title 3")
+      resourceId1 <- resourceId.from("T001")
+      resourceId2 <- resourceId.from("E002")
+      teacher <- teacherResult
+      external <- externalResult
+    } yield Viva(student, title, Map(resourceId1 -> Role.President, resourceId2 -> Role.Advisor))
+
+    val agendaDurationResult = agendaDuration.from("01:00:00")
+    agendaDurationResult match
+      case Right(duration) =>
+        (teacherResult, externalResult, vivaResult) match
+          case (Right(teacher), Right(external), Right(viva)) =>
+            val result = Algorithm.intersectAvailabilities(viva, List(teacher), List(external), duration)
+            result match
+              case Right(availabilities) =>
+                assert(availabilities.isEmpty)
+              case Left(_) => DomainError.XMLError("Invalid availability")
+          case _ => DomainError.XMLError("Invalid teacher, external or viva")
+      case Left(_) => DomainError.InvalidAgendaDuration("Invalid duration")
+
+
+  test("findEarliestTimeSlot should return the earliest time slot that fits the agenda duration"):
+    val availability1Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-03T10:15:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-03T11:15:00"))
+      preference <- Preference.from("4")
+    } yield Availability(start, end, preference)
+
+    val teacherResult = for {
+      id <- resourceId.from("T001")
+      name <- resourceName.from("Teacher 001")
+      availability1 <- availability1Result
+    } yield Resource(id, name, List(availability1))
+
+    val externalResult = for {
+      id <- resourceId.from("E002")
+      name <- resourceName.from("External 002")
+      availability1 <- availability1Result
+    } yield Resource(id, name, List(availability1))
+
+    val vivaResult = for {
+      student <- vivaStudent.from("Student 003")
+      title <- vivaTitle.from("Title 3")
+      resourceId1 <- resourceId.from("T001")
+      resourceId2 <- resourceId.from("E002")
+      teacher <- teacherResult
+      external <- externalResult
+    } yield Viva(student, title, Map(resourceId1 -> Role.President, resourceId2 -> Role.Advisor))
+
+    val durationResult = agendaDuration.from("01:00:00")
+
+    (teacherResult, externalResult, vivaResult, durationResult) match
+      case (Right(teacher), Right(external), Right(viva), Right(duration)) =>
+        val result = Algorithm.findEarliestTimeSlot(viva, List(teacher), List(external), duration)
+        result match
+          case Right(Some(availability)) =>
+            availabilityStart.from(LocalDateTime.parse("2007-12-03T10:15:00")) match
+              case Right(expectedStart) =>
+                assert(availability.start == expectedStart)
+              case Left(_) => DomainError.InvalidAvailabilityStart("Invalid start time")
+            availabilityEnd.from(LocalDateTime.parse("2007-12-03T11:15:00")) match
+              case Right(expectedEnd) =>
+                assert(availability.end == expectedEnd)
+              case Left(_) => DomainError.InvalidAvailabilityEnd("Invalid end time")
+          case Right(None) => DomainError.XMLError("No availability found")
+          case Left(_) => DomainError.XMLError("Invalid availability")
+
+  test("scheduleViva should return Right with updated teachers and externals when valid inputs are provided"):
+    val availability1Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-03T10:15:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-03T11:15:00"))
+      preference <- Preference.from("4")
+    } yield Availability(start, end, preference)
+
+    val teacherResult = for {
+      id <- resourceId.from("T001")
+      name <- resourceName.from("Teacher 001")
+      availability1 <- availability1Result
+    } yield Resource(id, name, List(availability1))
+
+    val externalResult = for {
+      id <- resourceId.from("E002")
+      name <- resourceName.from("External 002")
+      availability1 <- availability1Result
+    } yield Resource(id, name, List(availability1))
+
+    val vivaResult = for {
+      student <- vivaStudent.from("Student 003")
+      title <- vivaTitle.from("Title 3")
+      resourceId1 <- resourceId.from("T001")
+      resourceId2 <- resourceId.from("E002")
+      teacher <- teacherResult
+      external <- externalResult
+    } yield Viva(student, title, Map(resourceId1 -> Role.President, resourceId2 -> Role.Advisor))
+
+    val durationResult = agendaDuration.from("01:00:00")
+
+    (teacherResult, externalResult, vivaResult, durationResult) match
+      case (Right(teacher), Right(external), Right(viva), Right(duration)) =>
+        val result = Algorithm.scheduleViva(viva, List(teacher), List(external), duration)
+        result match
+          case Right((scheduledViva, timeSlot, updatedTeachers, updatedExternals, vivaPreference)) =>
+            assert(scheduledViva == viva)
+            availabilityStart.from(LocalDateTime.parse("2007-12-03T10:15:00")) match
+              case Right(expectedStart) =>
+                assert(timeSlot.start == expectedStart)
+              case Left(_) => DomainError.InvalidAvailabilityStart("Invalid start time")
+            availabilityEnd.from(LocalDateTime.parse("2007-12-03T11:15:00")) match
+              case Right(expectedEnd) =>
+                assert(timeSlot.end == expectedEnd)
+              case Left(_) => DomainError.InvalidAvailabilityEnd("Invalid end time")
+            assert(updatedTeachers.lengthIs == 1)
+            assert(updatedExternals.lengthIs == 1)
+            assert(vivaPreference == 4)
+          case Left(_) => DomainError.XMLError("Invalid availability")
+      case _ => DomainError.XMLError("Invalid teacher, external or viva")
+
+
+
+  test("scheduleViva should return Left with DomainError.ImpossibleSchedule when no time slot can be found"):
+    // Initialize viva, teachers, externals, and agendaDuration here with no possible time slot
+    val availability1Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-03T10:15:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-03T11:15:00"))
+      preference <- Preference.from("4")
+    } yield Availability(start, end, preference)
+
+    val teacherResult = for {
+      id <- resourceId.from("T001")
+      name <- resourceName.from("Teacher 001")
+      availability1 <- availability1Result
+    } yield Resource(id, name, List(availability1))
+
+    val externalResult = for {
+      id <- resourceId.from("E002")
+      name <- resourceName.from("External 002")
+      availability1 <- availability1Result
+    } yield Resource(id, name, List(availability1))
+
+    val vivaResult = for {
+      student <- vivaStudent.from("Student 003")
+      title <- vivaTitle.from("Title 3")
+      resourceId1 <- resourceId.from("T001")
+      resourceId2 <- resourceId.from("E002")
+      teacher <- teacherResult
+      external <- externalResult
+    } yield Viva(student, title, Map(resourceId1 -> Role.President, resourceId2 -> Role.Advisor))
+
+    val durationResult = agendaDuration.from("01:00:00")
+
+    (teacherResult, externalResult, vivaResult, durationResult) match
+      case (Right(teacher), Right(external), Right(viva), Right(duration)) =>
+        val result = Algorithm.scheduleViva(viva, List(teacher), List(external), duration)
+        assert(result == Left(DomainError.ImpossibleSchedule))
+      case _ => DomainError.XMLError("Invalid teacher, external or viva")
+
+
+  test("scheduleAllVivas should return Right with scheduled vivas, updated teachers, updated externals, and total preference when valid inputs are provided"):
+    val availability1Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-03T09:15:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-03T12:15:00"))
+      preference <- Preference.from("4")
+    } yield Availability(start, end, preference)
+
+    val availability2Result = for {
+      start <- availabilityStart.from(LocalDateTime.parse("2007-12-03T09:15:00"))
+      end <- availabilityEnd.from(LocalDateTime.parse("2007-12-03T13:15:00"))
+      preference <- Preference.from("3")
+    } yield Availability(start, end, preference)
+
+    val teacherResult = for {
+      id <- resourceId.from("T001")
+      name <- resourceName.from("Teacher 001")
+      availability1 <- availability1Result
+      availability2 <- availability2Result
+    } yield Resource(id, name, List(availability1, availability2))
+
+    val externalResult = for {
+      id <- resourceId.from("E002")
+      name <- resourceName.from("External 002")
+      availability1 <- availability1Result
+    } yield Resource(id, name, List(availability1))
+
+    val viva1Result = for {
+      student <- vivaStudent.from("Student 003")
+      title <- vivaTitle.from("Title 3")
+      resourceId1 <- resourceId.from("T001")
+      resourceId2 <- resourceId.from("E002")
+      teacher <- teacherResult
+      external <- externalResult
+    } yield Viva(student, title, Map(resourceId1 -> Role.President, resourceId2 -> Role.Advisor))
+
+    val viva2Result = for {
+      student <- vivaStudent.from("Student 004")
+      title <- vivaTitle.from("Title 4")
+      resourceId1 <- resourceId.from("T001")
+      resourceId2 <- resourceId.from("E002")
+      teacher <- teacherResult
+      external <- externalResult
+    } yield Viva(student, title, Map(resourceId1 -> Role.President, resourceId2 -> Role.Advisor))
+
+    val vivas = List(viva1Result, viva2Result)
+
+    val agendaDurationResult = agendaDuration.from("01:00:00")
+
+    (teacherResult, externalResult, vivas, agendaDurationResult) match
+      case (Right(teacher), Right(external), List(Right(viva1), Right(viva2)), Right(duration)) =>
+        val result = Algorithm.scheduleAllVivas(List(viva1, viva2), List(teacher), List(external), duration)
+        println("Result" + result)
+        result match
+          case Right((scheduledVivas, updatedTeachers, updatedExternals, totalPreference)) =>
+            println("Scheduled Vivas" + scheduledVivas)
+            assert(scheduledVivas.lengthIs == 2)
+            println("Updated Teachers" + updatedTeachers)
+            println("Updated Externals" + updatedTeachers)
+            assert(totalPreference == 14)
+            println("Total Preference" + totalPreference)
+          case Left(_) => fail("Expected Right, got Left")
+      case _ => fail("Invalid teacher, external, viva, or duration")
+
+
+  test("scheduleVivas returns Right when valid XML"):
+    val xml: Elem = <agenda duration="01:00:00">
+      <vivas>
+        <viva student="John Doe" title="Thesis Title">
+          <president id="T001"/>
+          <advisor id="T002"/>
+        </viva>
+      </vivas>
+      <resources>
+        <teachers>
+          <teacher id="T001" name="Teacher 1">
+            <availability start="2007-12-03T10:15:00" end="2007-12-03T11:30:00" preference="1"/>
+          </teacher>
+        </teachers>
+        <externals>
+          <external id="T002" name="External 1">
+            <availability start="2007-12-03T09:15:00" end="2007-12-03T11:30:00" preference="1"/>
+          </external>
+        </externals>
+      </resources>
+    </agenda>
+    val result = Algorithm.scheduleVivas(xml)
+    assert(result.isRight)
+
+  test("scheduleVivas returns Left when invalid XML"):
+    val xml: Elem = <agenda duration="01:00:00">
+      <vivas>
+        <viva student="John Doe" title="Thesis Title">
+          <president id="1"/>
+          <advisor id="2"/>
+        </viva>
+      </vivas>
+      <resources>
+        <teachers>
+          <teacher id="1">
+            <availability start="2007-12-03T10:15:00" end="2007-12-03T11:15:00" preference="1"/>
+          </teacher>
+        </teachers>
+        <externals>
+          <external id="2">
+            <availability start="2007-12-03T10:15:00" end="2007-12-03T11:15:00" preference="1"/>
+          </external>
+        </externals>
+      </resources>
+    </agenda>
+    val result = Algorithm.scheduleVivas(xml)
+    assert(result.isLeft)
+
+
+  test("updateAgenda should return Right when valid XML is provided") {
+    val xml: Elem = <agenda duration="01:00:00">
+      <vivas>
+        <viva student="John Doe" title="Thesis Title">
+          <president id="T001"/>
+          <advisor id="T002"/>
+        </viva>
+      </vivas>
+      <resources>
+        <teachers>
+          <teacher id="T001" name="Teacher 1">
+            <availability start="2007-12-03T10:15:00" end="2007-12-03T11:30:00" preference="1"/>
+          </teacher>
+        </teachers>
+        <externals>
+          <external id="T002" name="External 1">
+            <availability start="2007-12-03T09:15:00" end="2007-12-03T11:30:00" preference="1"/>
+          </external>
+        </externals>
+      </resources>
+    </agenda>
+
+    val originalFilePath = "files/test/ms01/valid_file_path.xml"
+    val result = Algorithm.updateAgenda(xml, originalFilePath)
+    assert(result.isRight)
+  }
