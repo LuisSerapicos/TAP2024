@@ -2,7 +2,7 @@ package pj.domain.schedule
 
 import pj.domain.{DomainError, Result}
 import pj.domain.schedule.SimpleTypes.{agendaDuration, availabilityDate}
-import pj.domain.schedule.Utils.{anyOverlap, dateFormatter, fixAvailabilities, parseDuration, sequence}
+import pj.domain.schedule.Utils.{anyOverlap, dateFormatter, fixAvailabilities, generateTimeSlots, parseDuration, sequence}
 import pj.domain.schedule.Domain.{Agenda, Availability2, Resource, Role2, Viva, VivaDuration}
 
 import java.time.Duration
@@ -92,20 +92,21 @@ object Algorithm:
         case _ => true
     }
 
-    val combinationPreferences = overlappingCombinations.flatMap { combination =>
-      val totalPreference = combination.map(_.preference.to).sum
-      findLatestTimeSlotWithNoViva(combination, duration).map { case (start, end, _) =>
-        val timeSlot = Availability2(start, end, Preference(totalPreference))
-        (totalPreference, List(timeSlot))
-      }
+    val validCombinations = overlappingCombinations.flatMap { combination =>
+      findLatestTimeSlotWithNoViva(combination, duration).map { timeSlots =>
+        timeSlots.map { case (start, end, preference) =>
+          (preference, List(Availability2(start, end, Preference(preference))))
+        }
+      }.getOrElse(List.empty[(Int, List[Availability2])])
     }
 
-    println("Combination Preferences: " + combinationPreferences)
+    println("Valid Combinations: " + validCombinations)
 
-    combinationPreferences
+    validCombinations
 
 
-  /**
+
+/**
    * This function finds the global max preference for the vivas. It returns the total preference and the list of vivas with their time slots.
    * It does this by generating all possible combinations of time slots for each viva and then selecting the combination with the highest total preference.
    * @param vivas
@@ -171,18 +172,23 @@ object Algorithm:
    * @param duration
    * @return An optional tuple containing the start time, end time, and preference of the time slot.
    */
-  def findLatestTimeSlotWithNoViva(suitableAvailabilities: List[Availability2], duration: agendaDuration): Option[(availabilityDate, availabilityDate, Int)] =
+  def findLatestTimeSlotWithNoViva(suitableAvailabilities: List[Availability2], duration: agendaDuration): Option[List[(availabilityDate, availabilityDate, Int)]] =
     val durationF = parseDuration(duration)
     val starts = suitableAvailabilities.map(_.start)
+    val ends = suitableAvailabilities.map(_.end)
+    println("Starts: " + starts + " Ends: " + ends)
     val latestTimeSlot = starts.maxByOption(availabilityDate.toLocalDateTime)
+    val earliestEndTime = ends.minByOption(availabilityDate.toLocalDateTime)
+    println("Latest Time Slot: " + latestTimeSlot + " Earliest End Time: " + earliestEndTime)
 
-    latestTimeSlot.map { modifiedLatestTimeSlot =>
+    for {
+      modifiedLatestTimeSlot <- latestTimeSlot
+      end <- earliestEndTime
+    } yield
       val start = modifiedLatestTimeSlot
-      val end = modifiedLatestTimeSlot.plusTime(durationF)
       val preference = suitableAvailabilities.map(a => a.preference.to).sum
+      generateTimeSlots(start, end, durationF, preference)
 
-      (start, end, preference)
-    }
 
 
   /**

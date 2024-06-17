@@ -2,6 +2,7 @@ package pj.domain.schedule.ScheduleMS03Tests
 
 import org.scalatest.funsuite.AnyFunSuite
 import pj.domain.DomainError
+import pj.domain.schedule.Algorithm.findLatestTimeSlotWithNoViva
 import pj.domain.schedule.Domain.{Availability2, Resource, Role2, Viva}
 import pj.domain.schedule.{Algorithm, Preference}
 import pj.domain.schedule.SimpleTypes.{agendaDuration, availabilityDate, resourceId, resourceName, vivaStudent, vivaTitle}
@@ -212,7 +213,7 @@ class AlgorithmTests extends AnyFunSuite:
           case None => fail("No availability found")
       case None => fail("No time slots found")
 
-  test("findLatestTimeSlotWithNoViva should return the correct time slot"):
+  /*test("findLatestTimeSlotWithNoViva should return the correct time slot"):
     val suitableAvailabilities = List(
       Availability2(
         start = availabilityDate.from(LocalDateTime.of(2024, 1, 6, 9, 0)),
@@ -248,6 +249,49 @@ class AlgorithmTests extends AnyFunSuite:
         assert(start == availabilityDate.from(LocalDateTime.of(2024, 1, 6, 17, 0)))
         assert(end == availabilityDate.from(LocalDateTime.of(2024, 1, 6, 18, 30)))
         assert(preference == 14)
+      case None => fail("No time slot found")
+  */
+
+  test("findLatestTimeSlotWithNoViva should return the correct time slot"):
+    val suitableAvailabilities = List(
+      Availability2(
+        start = availabilityDate.from(LocalDateTime.of(2024, 1, 6, 9, 0)),
+        end = availabilityDate.from(LocalDateTime.of(2024, 1, 6, 12, 0)),
+        preference = Preference(2)
+      ),
+      Availability2(
+        start = availabilityDate.from(LocalDateTime.of(2024, 1, 6, 10, 0)),
+        end = availabilityDate.from(LocalDateTime.of(2024, 1, 6, 11, 30)),
+        preference = Preference(5)
+      ),
+      Availability2(
+        start = availabilityDate.from(LocalDateTime.of(2024, 1, 6, 14, 0)),
+        end = availabilityDate.from(LocalDateTime.of(2024, 1, 6, 18, 0)),
+        preference = Preference(3)
+      ),
+      Availability2(
+        start = availabilityDate.from(LocalDateTime.of(2024, 1, 6, 17, 0)),
+        end = availabilityDate.from(LocalDateTime.of(2024, 1, 6, 18, 30)),
+        preference = Preference(4)
+      )
+    )
+
+    val duration = agendaDuration.from("01:30:00").fold(
+      error => fail("Unexpected error: " + error),
+      value => value
+    )
+
+    val result = findLatestTimeSlotWithNoViva(suitableAvailabilities, duration)
+
+    result match
+      case Some(timeSlots) =>
+        assert(timeSlots.nonEmpty)
+        timeSlots.headOption match
+          case Some((start, end, preference)) =>
+            assert(start == availabilityDate.from(LocalDateTime.of(2024, 1, 6, 17, 0)))
+            assert(end == availabilityDate.from(LocalDateTime.of(2024, 1, 6, 18, 30)))
+            assert(preference == 14)
+          case None => fail("No time slot found")
       case None => fail("No time slot found")
 
   test("scheduleAllVivas should return the correct resources and vivas"):

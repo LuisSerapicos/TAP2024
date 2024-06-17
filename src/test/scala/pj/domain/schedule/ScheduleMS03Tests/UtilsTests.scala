@@ -3,7 +3,7 @@ package pj.domain.schedule.ScheduleMS03Tests
 import org.scalatest.funsuite.AnyFunSuite
 import pj.domain.schedule.Domain.{Availability2, Resource, Role2, Viva}
 import pj.domain.schedule.Preference
-import pj.domain.schedule.Utils.{anyOverlap, dateFormatter, fixAvailabilities, getRoleFromViva, overlaps, parseDate, parseDuration, sequence, stringToDuration}
+import pj.domain.schedule.Utils.{anyOverlap, dateFormatter, fixAvailabilities, generateTimeSlots, getRoleFromViva, overlaps, parseDate, parseDuration, sequence, stringToDuration}
 import pj.domain.schedule.SimpleTypes.{agendaDuration, availabilityDate, resourceId, resourceName, vivaStudent, vivaTitle}
 
 import java.time.{Duration, LocalDateTime}
@@ -327,4 +327,30 @@ class UtilsTests extends AnyFunSuite:
 
     assert(result == expected)
 
+
+  test("generateTimeSlots should generate correct time slots"):
+    val start = availabilityDate.from("2024-06-01T09:00:00").fold(
+      error => fail("Unexpected error: " + error),
+      date => date
+    )
+    val end = availabilityDate.from("2024-06-01T12:00:00").fold(
+      error => fail("Unexpected error: " + error),
+      date => date
+    )
+    val duration = agendaDuration.from("01:00:00").fold(
+      error => fail("Unexpected error: " + error),
+      duration => duration
+    )
+    val durationF = parseDuration(duration)
+    val preference = 1
+
+    val result = generateTimeSlots(start, end, durationF, preference)
+
+    val expected = List(
+      (start, start.plusTime(durationF), 1),
+      (start.plusTime(durationF), start.plusTime(durationF).plusTime(durationF), 1),
+      (start.plusTime(durationF).plusTime(durationF), end, 1)
+    )
+
+    assert(result == expected)
 

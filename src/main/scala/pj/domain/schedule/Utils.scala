@@ -59,6 +59,25 @@ object Utils:
 
 
   /**
+   * This function generates a list of time slots based on the availability of a resource.
+   *
+   * @param start      The start of the availability.
+   * @param end        The end of the availability.
+   * @param duration   The duration of each time slot.
+   * @param preference The preference of the time slot.
+   * @return A list of tuples representing the time slots.
+   */
+  def generateTimeSlots(start: availabilityDate, end: availabilityDate, duration: Duration, preference: Int): List[(availabilityDate, availabilityDate, Int)] =
+    val startDateTime = availabilityDate.toLocalDateTime(start)
+    val endDateTime = availabilityDate.toLocalDateTime(end)
+
+    if (startDateTime.plus(duration).isAfter(endDateTime))
+      List.empty[(availabilityDate, availabilityDate, Int)]
+    else
+      (start, start.plusTime(duration), preference) :: generateTimeSlots(start.plusTime(duration), end, duration, preference)
+
+
+  /**
    * This function adjusts the availability of a resource based on overlaps with a given time interval.
    *
    * @param availability The original availability of the resource.
